@@ -14,6 +14,30 @@ Jailbreak, root, hooking, debugger and emulator detection for React Native and E
 
 **Doesn't:** send telemetry, make network calls, or request permissions. Client-side only — **not** a replacement for commercial RASP/anti-tamper products or server-side attestation (App Attest / Play Integrity).
 
+## How it compares
+
+A snapshot of popular options, as of September 2026. Check each project for current details.
+
+| | **react-native-device-integrity** | [jail-monkey](https://github.com/GantMan/jail-monkey) | [freeRASP](https://github.com/talsec/Free-RASP-ReactNative) | [expo-device](https://docs.expo.dev/versions/latest/sdk/device/) | [react-native-device-info](https://github.com/react-native-device-info/react-native-device-info) |
+| --- | --- | --- | --- | --- | --- |
+| Focus | Device integrity signals | Jailbreak/root + device flags | Full RASP / app shielding | Device info | Device info |
+| Jailbreak / root | ✅ | ✅ | ✅ | Experimental (`isRootedExperimentalAsync`) | — |
+| Hooking frameworks (Frida, Xposed, Substrate) | ✅ iOS + Android | Android: suspicious apps | ✅ | — | — |
+| Debugger attached | ✅ | Debug-build check | ✅ | — | — |
+| Emulator / simulator | ✅ (reported separately) | — | ✅ | `isDevice` | `isEmulator()` |
+| App tampering, unofficial store, screenshots, malware… | — | — | ✅ | — | — |
+| Result model | `clean` / `compromised` / `unknown` + signal ids + reason | Booleans | Per-threat callbacks | Boolean / throws | Boolean |
+| Failed checks | Reported as `unknown`, never `clean` | Not documented | Not documented | Throws | Not documented |
+| Network / telemetry | **None** | None | Security telemetry to Talsec (part of the free plan) | None | None |
+| Licence / cost | MIT, fully open source | MIT | MIT wrapper + proprietary SDK; free up to 100k devices | MIT | MIT |
+| Architecture | New Architecture (TurboModule) | New + old architecture | Not documented | Expo module | Not documented |
+| Expo config plugin | ✅ | — | ✅ | Built in (Expo) | — |
+
+**Pick this library** if you want a small, fully open-source, zero-network check with typed, fail-closed results that you can audit end to end.
+**Pick freeRASP** if you need broad RASP coverage (tampering, store, screen capture, malware) and managed reporting, and can accept telemetry and its fair-usage terms.
+**Pick jail-monkey** if you also need its extra device flags (mock location, ADB, developer settings) or old-architecture support.
+None of these replace server-side attestation (App Attest / Play Integrity) for high-value actions.
+
 ## Requirements
 
 - **New Architecture (TurboModule) required** — no old-architecture bridge fallback.
