@@ -4,7 +4,6 @@
 
 #import <UIKit/UIKit.h>
 #import <mach-o/dyld.h>
-#import <sys/stat.h>
 #import <sys/sysctl.h>
 #import <unistd.h>
 
@@ -184,14 +183,7 @@
   if (cPath == NULL) {
     return NO;
   }
-  struct stat st;
-  if (stat(cPath, &st) == 0) {
-    return YES;
-  }
-  if (access(cPath, F_OK) == 0) {
-    return YES;
-  }
-  return NO;
+  return access(cPath, F_OK) == 0;
 }
 
 + (BOOL)hasJailbreakFiles
@@ -303,13 +295,12 @@
     ];
   });
 
+  NSFileManager *fm = [NSFileManager defaultManager];
   for (NSString *path in paths) {
-    const char *cPath = [path fileSystemRepresentation];
-    if (cPath == NULL) {
-      continue;
-    }
-    struct stat st;
-    if (lstat(cPath, &st) == 0 && S_ISLNK(st.st_mode)) {
+    NSError *error = nil;
+    NSString *destination =
+        [fm destinationOfSymbolicLinkAtPath:path error:&error];
+    if (destination != nil) {
       return YES;
     }
   }
