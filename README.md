@@ -12,14 +12,7 @@ npm install react-native-device-integrity
 
 ## Usage
 
-
-```js
-import { multiply } from 'react-native-device-integrity';
-
-// ...
-
-const result = multiply(3, 7);
-```
+API coming soon — see the project plan for the integrity check surface.
 
 
 ## Contributing
