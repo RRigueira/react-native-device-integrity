@@ -24,6 +24,7 @@
     "react-native.config.js",
     "!ios/build",
     "!android/build",
+    "!android/app/build",
     "!android/gradle",
     "!android/gradlew",
     "!android/gradlew.bat",
@@ -61,7 +62,9 @@
   },
   "homepage": "https://github.com/RRigueira/react-native-device-integrity#readme",
   "publishConfig": {
-    "registry": "https://registry.npmjs.org/"
+    "registry": "https://registry.npmjs.org/",
+    "access": "public",
+    "provenance": true
   },
   "devDependencies": {
     "@commitlint/cli": "^21.2.3",
@@ -177,10 +180,12 @@
   "release-it": {
     "git": {
       "commitMessage": "chore: release ${version}",
-      "tagName": "v${version}"
+      "tagName": "v${version}",
+      "requireBranch": "main",
+      "requireCleanWorkingDir": true
     },
     "npm": {
-      "publish": true
+      "publish": false
     },
     "github": {
       "release": true
