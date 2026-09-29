@@ -4,11 +4,35 @@ Jailbreak, root, hooking, debugger and tamper detection for React Native and Exp
 
 ## Installation
 
-
 ```sh
 npm install react-native-device-integrity
 ```
 
+### Expo
+
+```sh
+npx expo install react-native-device-integrity
+```
+
+Add the config plugin to `app.json` / `app.config.js`:
+
+```json
+{
+  "expo": {
+    "plugins": ["react-native-device-integrity"]
+  }
+}
+```
+
+Then run `npx expo prebuild` or use a development build. Expo Go is not supported (native module).
+
+### Bare React Native
+
+On iOS, add these schemes to `Info.plist` under `LSApplicationQueriesSchemes` so jailbreak URL checks can call `canOpenURL`:
+
+`cydia`, `sileo`, `zbra`, `filza`, `undecimus`, `activator`
+
+Android needs no extra setup — the library manifest `<queries>` merge automatically.
 
 ## Usage
 

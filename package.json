@@ -18,6 +18,8 @@
     "android",
     "ios",
     "cpp",
+    "app.plugin.js",
+    "plugin/build",
     "*.podspec",
     "react-native.config.js",
     "!ios/build",
@@ -34,8 +36,9 @@
   "scripts": {
     "example": "yarn workspace react-native-device-integrity-example",
     "clean": "del-cli lib",
-    "prepare": "bob build",
-    "typecheck": "tsc",
+    "prepare": "bob build && yarn build:plugin",
+    "build:plugin": "tsc -p plugin",
+    "typecheck": "tsc && tsc -p plugin --noEmit",
     "lint": "eslint \"**/*.{js,ts,tsx}\"",
     "test": "jest",
     "release": "release-it --only-version"
@@ -43,7 +46,9 @@
   "keywords": [
     "react-native",
     "ios",
-    "android"
+    "android",
+    "expo",
+    "expo-config-plugin"
   ],
   "repository": {
     "type": "git",
@@ -70,6 +75,7 @@
     "@release-it/conventional-changelog": "^12.0.2",
     "@testing-library/react-native": "^13.3.3",
     "@types/jest": "^30.0.0",
+    "@types/node": "^26.6.3",
     "@types/react": "^19.2.0",
     "@types/react-test-renderer": "^19",
     "del-cli": "^7.0.0",
@@ -77,6 +83,7 @@
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-ft-flow": "^3.0.11",
     "eslint-plugin-prettier": "^5.5.6",
+    "expo": "~57.0.26",
     "jest": "^30.5.2",
     "lefthook": "^2.1.14",
     "prettier": "^3.9.6",
@@ -89,8 +96,14 @@
     "typescript": "^6.0.3"
   },
   "peerDependencies": {
+    "expo": ">=52",
     "react": "*",
     "react-native": "*"
+  },
+  "peerDependenciesMeta": {
+    "expo": {
+      "optional": true
+    }
   },
   "workspaces": [
     "example"
@@ -133,7 +146,11 @@
     "preset": "react-native",
     "modulePathIgnorePatterns": [
       "<rootDir>/example/node_modules",
-      "<rootDir>/lib/"
+      "<rootDir>/lib/",
+      "<rootDir>/plugin/build"
+    ],
+    "testPathIgnorePatterns": [
+      "<rootDir>/plugin/build"
     ]
   },
   "commitlint": {

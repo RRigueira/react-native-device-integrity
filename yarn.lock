@@ -4057,7 +4057,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/node@npm:*":
+"@types/node@npm:*, @types/node@npm:^26.6.3":
   version: 26.6.3
   resolution: "@types/node@npm:26.6.3"
   dependencies:
@@ -11261,6 +11261,7 @@ __metadata:
     "@release-it/conventional-changelog": "npm:^12.0.2"
     "@testing-library/react-native": "npm:^13.3.3"
     "@types/jest": "npm:^30.0.0"
+    "@types/node": "npm:^26.6.3"
     "@types/react": "npm:^19.2.0"
     "@types/react-test-renderer": "npm:^19"
     del-cli: "npm:^7.0.0"
@@ -11268,6 +11269,7 @@ __metadata:
     eslint-config-prettier: "npm:^10.1.8"
     eslint-plugin-ft-flow: "npm:^3.0.11"
     eslint-plugin-prettier: "npm:^5.5.6"
+    expo: "npm:~57.0.26"
     jest: "npm:^30.5.2"
     lefthook: "npm:^2.1.14"
     prettier: "npm:^3.9.6"
@@ -11279,8 +11281,12 @@ __metadata:
     turbo: "npm:^2.10.8"
     typescript: "npm:^6.0.3"
   peerDependencies:
+    expo: ">=52"
     react: "*"
     react-native: "*"
+  peerDependenciesMeta:
+    expo:
+      optional: true
   languageName: unknown
   linkType: soft
 
