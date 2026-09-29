@@ -1,4 +1,5 @@
 #import "DeviceIntegrity.h"
+#import "DIIntegrityChecks.h"
 
 @implementation DeviceIntegrity
 
@@ -16,11 +17,13 @@
 - (void)checkIntegrity:(RCTPromiseResolveBlock)resolve
                 reject:(RCTPromiseRejectBlock)reject
 {
-  resolve(@{
-    @"completed": @NO,
-    @"reason": @"not_implemented",
-    @"signals": @[],
-  });
+  @try {
+    [DIIntegrityChecks runWithCompletion:^(NSDictionary *report) {
+      resolve(report);
+    }];
+  } @catch (NSException *exception) {
+    reject(@"E_INTEGRITY", exception.reason ?: @"Unexpected integrity check failure", nil);
+  }
 }
 
 @end
