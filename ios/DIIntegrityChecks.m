@@ -1,6 +1,7 @@
 // Check set informed by IOSSecuritySuite and the OWASP MASTG; independent implementation.
 
 #import "DIIntegrityChecks.h"
+#import "DITamperChecks.h"
 
 #import <UIKit/UIKit.h>
 #import <mach-o/dyld.h>
@@ -54,7 +55,8 @@
   return [report copy];
 }
 
-+ (void)runWithCompletion:(void (^)(NSDictionary *report))completion
++ (void)runWithIOSConfig:(NSDictionary *)iosConfig
+              completion:(void (^)(NSDictionary *report))completion
 {
   dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
     NSMutableArray<NSDictionary *> *signals = [NSMutableArray array];
@@ -94,6 +96,12 @@
     } @catch (__unused NSException *exception) {
       completed = NO;
     }
+
+    // --- tamper checks (optional; skipped on Simulator by design) ---
+    [DITamperChecks runWithConfig:iosConfig
+                          signals:signals
+                          seenIds:seenIds
+                        completed:&completed];
 
 #if TARGET_OS_SIMULATOR
     // Simulator: host Mac filesystem and Xcode-injected DYLD_INSERT_LIBRARIES
