@@ -32,6 +32,11 @@ updates:
         update-types:
           - version-update:semver-minor
           - version-update:semver-major
+      # Must match the react version exactly.
+      - dependency-name: react-test-renderer
+        update-types:
+          - version-update:semver-minor
+          - version-update:semver-major
       - dependency-name: expo
         update-types:
           - version-update:semver-major
