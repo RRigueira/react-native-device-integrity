@@ -31,7 +31,7 @@ yarn prepare
 
 > Since the project relies on Yarn workspaces, you cannot use [`npm`](https://github.com/npm/cli) for development without manually migrating.
 
-The [example app](/example/) demonstrates usage of the library. You need to run it to test any changes you make.
+The [example app](./example/) demonstrates usage of the library. You need to run it to test any changes you make.
 
 It is configured to use the local version of the library, so any changes you make to the library's source code will be reflected in the example app. Changes to the library's JavaScript code will be reflected in the example app without a rebuild, but native code changes will require a rebuild of the example app.
 
@@ -114,6 +114,17 @@ The `package.json` file contains various scripts for common tasks:
 - `yarn example ios`: run the example app on iOS.
 - `yarn example web`: run the example app on Web.
 - `yarn example build:web`: build the example app for Web.
+
+### Adding or changing a signal
+
+Signal `id` values are **stable public API**. When you add or change a signal:
+
+1. Update the native check (`ios/DIIntegrityChecks.m` and/or `android/.../IntegrityChecks.kt`).
+2. Update the matching rows in the [README signal reference](README.md#signal-reference).
+3. Add or adjust unit tests that assert the id / category mapping.
+4. Keep `description` strings **generic** — never include matched paths, package names, or other indicator details that would help an attacker inventory detections from the result payload.
+
+`"unknown"` must never become `"clean"` (incomplete / errored runs stay fail-closed-friendly).
 
 ### Sending a pull request
 

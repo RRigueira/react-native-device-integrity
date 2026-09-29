@@ -1,8 +1,11 @@
 blank_issues_enabled: false
 contact_links:
-  - name: Feature Request 💡
+  - name: Security vulnerability
+    url: https://github.com/RRigueira/react-native-device-integrity/security/advisories/new
+    about: Report security issues privately — see SECURITY.md. Do not open a public issue.
+  - name: Feature request
     url: https://github.com/RRigueira/react-native-device-integrity/discussions/new?category=ideas
-    about: If you have a feature request, please create a new discussion on GitHub.
-  - name: Discussions on GitHub 💬
+    about: Propose features or detection coverage improvements via Discussions.
+  - name: Questions & help
     url: https://github.com/RRigueira/react-native-device-integrity/discussions
-    about: If this library works as promised but you need help, please ask questions there.
+    about: Ask usage questions in Discussions.

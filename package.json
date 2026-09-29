@@ -1,7 +1,7 @@
 {
   "name": "react-native-device-integrity",
   "version": "0.1.0",
-  "description": "Jailbreak, root, hooking, debugger and tamper detection for React Native and Expo",
+  "description": "Jailbreak, root, hooking, debugger and emulator detection for React Native and Expo",
   "main": "./lib/module/index.js",
   "types": "./lib/typescript/src/index.d.ts",
   "exports": {
@@ -189,7 +189,8 @@
       "@release-it/conventional-changelog": {
         "preset": {
           "name": "angular"
-        }
+        },
+        "infile": "CHANGELOG.md"
       }
     }
   },
