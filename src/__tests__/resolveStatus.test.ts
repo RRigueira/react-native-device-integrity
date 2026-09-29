@@ -139,6 +139,108 @@ describe('resolveStatus', () => {
     expect(result.status).toBe('compromised');
   });
 
+  it('coerces non-string and missing native categories to environment', () => {
+    const result = resolveStatus(
+      {
+        completed: true,
+        signals: [
+          { id: 'a', category: 123, description: 'num' },
+          { id: 'b', description: 'missing category' },
+          { id: 'c', category: null, description: 'null category' },
+        ],
+      },
+      {},
+      PLATFORM
+    );
+
+    expect(result.signals.map((s) => s.category)).toEqual([
+      'environment',
+      'environment',
+      'environment',
+    ]);
+    expect(result.status).toBe('compromised');
+  });
+
+  it('normalizes non-object signal entries and preserves duplicate ids', () => {
+    const result = resolveStatus(
+      {
+        completed: true,
+        signals: [
+          null,
+          'bad',
+          {
+            id: 'dup',
+            category: 'root',
+            description: 'one',
+          },
+          {
+            id: 'dup',
+            category: 'root',
+            description: 'two',
+          },
+        ],
+      },
+      {},
+      PLATFORM
+    );
+
+    expect(result.signals).toEqual([
+      {
+        id: 'unknown_signal',
+        category: 'environment',
+        description: '',
+      },
+      {
+        id: 'unknown_signal',
+        category: 'environment',
+        description: '',
+      },
+      {
+        id: 'dup',
+        category: 'root',
+        description: 'one',
+      },
+      {
+        id: 'dup',
+        category: 'root',
+        description: 'two',
+      },
+    ]);
+    expect(result.status).toBe('compromised');
+  });
+
+  it('ignores extra unknown fields on the native report', () => {
+    const result = resolveStatus(
+      {
+        completed: true,
+        signals: [
+          {
+            id: 'simulator',
+            category: 'emulator',
+            description: 'Simulator',
+            mystery: true,
+          },
+        ],
+        schemaVersion: 99,
+        unused: ['x'],
+      },
+      {},
+      PLATFORM
+    );
+
+    expect(result).toEqual({
+      status: 'clean',
+      signals: [
+        {
+          id: 'simulator',
+          category: 'emulator',
+          description: 'Simulator',
+        },
+      ],
+      platform: PLATFORM,
+    });
+  });
+
   it('keeps signals with missing or invalid ids as unknown_signal', () => {
     const result = resolveStatus(
       {

@@ -19,6 +19,16 @@ Run `yarn` in the root directory to install the required dependencies for each p
 yarn
 ```
 
+After installing, build the Expo config plugin before running the example (or any command that loads `app.plugin.js` / Expo prebuild). Either of these works:
+
+```sh
+yarn build:plugin
+# or
+yarn prepare
+```
+
+`plugin/build` is gitignored; a clean checkout will not have it until you run one of the commands above. `yarn prepare` also builds the library JS output under `lib/`.
+
 > Since the project relies on Yarn workspaces, you cannot use [`npm`](https://github.com/npm/cli) for development without manually migrating.
 
 The [example app](/example/) demonstrates usage of the library. You need to run it to test any changes you make.
@@ -63,39 +73,48 @@ To run the example app on Web:
 yarn example web
 ```
 
-Make sure your code passes TypeScript:
+Make sure your code passes TypeScript and linting:
 
 ```sh
 yarn typecheck
-```
-
-To check for linting errors, run the following:
-
-```sh
 yarn lint
 ```
 
-To fix formatting errors, run the following:
+To fix formatting errors:
 
 ```sh
 yarn lint --fix
 ```
 
+Run the unit tests (JS API + Expo config plugin):
 
+```sh
+yarn test
+```
+
+With coverage:
+
+```sh
+yarn test --coverage
+```
+
+Git hooks are managed with [Lefthook](https://github.com/evilmartians/lefthook): pre-commit runs ESLint on staged files and `tsc`, and commit-msg runs [commitlint](https://commitlint.js.org/) (conventional commits). Install hooks once after cloning with `yarn lefthook install` if they are not already active.
 
 ### Scripts
 
 The `package.json` file contains various scripts for common tasks:
 
 - `yarn`: setup project by installing dependencies.
+- `yarn build:plugin` / `yarn prepare`: build the Expo config plugin (and library JS for `prepare`).
 - `yarn typecheck`: type-check files with TypeScript.
-  - `yarn lint`: lint files with [ESLint](https://eslint.org/).
-    - `yarn example start`: start the Metro server for the example app.
+- `yarn lint`: lint files with [ESLint](https://eslint.org/).
+- `yarn test`: run Jest unit tests.
+- `yarn example start`: start the Metro server for the example app.
 - `yarn example android`: run the example app on Android.
 - `yarn example ios`: run the example app on iOS.
-  - `yarn example web`: run the example app on Web.
+- `yarn example web`: run the example app on Web.
 - `yarn example build:web`: build the example app for Web.
-  
+
 ### Sending a pull request
 
 > **Working on your first pull request?** You can learn how from this _free_ series: [How to Contribute to an Open Source Project on GitHub](https://app.egghead.io/playlists/how-to-contribute-to-an-open-source-project-on-github).
@@ -103,7 +122,7 @@ The `package.json` file contains various scripts for common tasks:
 When you're sending a pull request:
 
 - Prefer small pull requests focused on one change.
-- Verify that linters and tests are passing.
+- Verify that linters and tests are passing (`yarn lint`, `yarn typecheck`, `yarn test`).
 - Review the documentation to make sure it looks good.
 - Follow the pull request template when opening a pull request.
 - For pull requests that change the API or implementation, discuss with maintainers first by opening an issue.

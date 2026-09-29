@@ -4,6 +4,10 @@
  */
 import { Platform } from 'react-native';
 
+jest.mock('../NativeDeviceIntegrity', () => {
+  throw new Error('web entry must not load NativeDeviceIntegrity');
+});
+
 const { checkIntegrity } =
   require('../checkIntegrity.ts') as typeof import('../checkIntegrity');
 
@@ -23,5 +27,17 @@ describe('checkIntegrity (web)', () => {
       platform: 'web',
       reason: 'unsupported_platform',
     });
+  });
+
+  it('never requires the native module', async () => {
+    Platform.OS = 'web';
+
+    await expect(checkIntegrity()).resolves.toMatchObject({
+      status: 'unknown',
+      reason: 'unsupported_platform',
+    });
+    expect(() => require('../NativeDeviceIntegrity')).toThrow(
+      'web entry must not load NativeDeviceIntegrity'
+    );
   });
 });

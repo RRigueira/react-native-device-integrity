@@ -73,6 +73,107 @@ describe('checkIntegrity.native', () => {
     });
   });
 
+  it('resolves unknown timeout when timeoutMs is 0', async () => {
+    jest.useFakeTimers();
+    mockCheckIntegrity.mockImplementation(() => new Promise(() => {}));
+
+    const pending = checkIntegrity({ timeoutMs: 0 });
+    await jest.advanceTimersByTimeAsync(0);
+
+    await expect(pending).resolves.toEqual({
+      status: 'unknown',
+      signals: [],
+      platform: 'ios',
+      reason: 'timeout',
+    });
+  });
+
+  it('maps native report with extra unknown fields through resolveStatus', async () => {
+    mockCheckIntegrity.mockResolvedValue({
+      completed: true,
+      signals: [
+        {
+          id: 'jailbreak_cydia',
+          category: 'jailbreak',
+          description: 'Cydia',
+          extra: 'ignored',
+          nested: { a: 1 },
+        },
+      ],
+      futureField: true,
+      vendorMeta: { score: 0 },
+    } as never);
+
+    await expect(checkIntegrity()).resolves.toEqual({
+      status: 'compromised',
+      signals: [
+        {
+          id: 'jailbreak_cydia',
+          category: 'jailbreak',
+          description: 'Cydia',
+        },
+      ],
+      platform: 'ios',
+    });
+  });
+
+  it('preserves duplicate signal ids as returned by native', async () => {
+    mockCheckIntegrity.mockResolvedValue({
+      completed: true,
+      signals: [
+        {
+          id: 'jailbreak_cydia',
+          category: 'jailbreak',
+          description: 'first',
+        },
+        {
+          id: 'jailbreak_cydia',
+          category: 'jailbreak',
+          description: 'second',
+        },
+      ],
+    });
+
+    const result = await checkIntegrity();
+    expect(result.status).toBe('compromised');
+    expect(result.signals).toEqual([
+      {
+        id: 'jailbreak_cydia',
+        category: 'jailbreak',
+        description: 'first',
+      },
+      {
+        id: 'jailbreak_cydia',
+        category: 'jailbreak',
+        description: 'second',
+      },
+    ]);
+  });
+
+  it('maps non-Error native rejections to a string error message', async () => {
+    mockCheckIntegrity.mockRejectedValue('string-fail');
+
+    await expect(checkIntegrity()).resolves.toEqual({
+      status: 'unknown',
+      signals: [],
+      platform: 'ios',
+      reason: 'native_error',
+      error: 'string-fail',
+    });
+  });
+
+  it('maps non-string non-Error native rejections to a fallback message', async () => {
+    mockCheckIntegrity.mockRejectedValue({ code: 42 });
+
+    await expect(checkIntegrity()).resolves.toEqual({
+      status: 'unknown',
+      signals: [],
+      platform: 'ios',
+      reason: 'native_error',
+      error: 'Native integrity check failed',
+    });
+  });
+
   it('maps not_implemented stub report to unknown', async () => {
     mockCheckIntegrity.mockResolvedValue({
       completed: false,
