@@ -26,7 +26,7 @@ internal class IntegrityChecks(private val context: Context) {
     val signals: List<Signal>,
   )
 
-  fun run(): Report {
+  fun run(androidOptions: AndroidTamperOptions = AndroidTamperOptions()): Report {
     val signals = mutableListOf<Signal>()
     val seen = mutableSetOf<String>()
     var completed = true
@@ -55,6 +55,10 @@ internal class IntegrityChecks(private val context: Context) {
     runCheck { checkHookingFrida() }
     runCheck { checkHookingXposed() }
     runCheck { checkDebuggerAttached() }
+
+    val tamper = TamperChecks(context, androidOptions)
+    runCheck { tamper.checkSignatureMismatch() }
+    runCheck { tamper.checkUntrustedInstaller() }
 
     return Report(
       completed = completed,
