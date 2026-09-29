@@ -24,6 +24,8 @@ describe('checkIntegrity (web)', () => {
     await expect(checkIntegrity()).resolves.toEqual({
       status: 'unknown',
       signals: [],
+      ignored: [],
+      durationMs: 0,
       platform: 'web',
       reason: 'unsupported_platform',
     });
@@ -35,6 +37,8 @@ describe('checkIntegrity (web)', () => {
     await expect(checkIntegrity()).resolves.toMatchObject({
       status: 'unknown',
       reason: 'unsupported_platform',
+      ignored: [],
+      durationMs: 0,
     });
     expect(() => require('../NativeDeviceIntegrity')).toThrow(
       'web entry must not load NativeDeviceIntegrity'

@@ -10,6 +10,8 @@ export async function checkIntegrity(
   return {
     status: 'unknown',
     signals: [],
+    ignored: [],
+    durationMs: 0,
     platform: Platform.OS,
     reason: 'unsupported_platform',
   };

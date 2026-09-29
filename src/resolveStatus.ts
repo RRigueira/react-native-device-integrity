@@ -4,6 +4,7 @@ import type {
   IntegrityResult,
   Signal,
   SignalCategory,
+  SignalId,
   UnknownReason,
 } from './types';
 
@@ -16,6 +17,16 @@ const SIGNAL_CATEGORIES: ReadonlySet<string> = new Set([
   'tamper',
   'environment',
 ]);
+
+/** Default compromising set: every category except emulator. */
+const DEFAULT_COMPROMISING_CATEGORIES: readonly SignalCategory[] = [
+  'jailbreak',
+  'root',
+  'hooking',
+  'debugger',
+  'tamper',
+  'environment',
+];
 
 function coerceCategory(category: unknown): SignalCategory {
   if (typeof category === 'string' && SIGNAL_CATEGORIES.has(category)) {
@@ -48,6 +59,46 @@ function normalizeSignal(raw: unknown): Signal {
   };
 }
 
+function resolveCompromisingCategories(
+  options: CheckIntegrityOptions
+): ReadonlySet<SignalCategory> {
+  const base =
+    options.policy?.compromisingCategories != null
+      ? options.policy.compromisingCategories
+      : DEFAULT_COMPROMISING_CATEGORIES;
+
+  const set = new Set<SignalCategory>(base);
+
+  if (options.treatEmulatorAsCompromised === true) {
+    set.add('emulator');
+  }
+
+  return set;
+}
+
+function partitionIgnored(
+  signals: Signal[],
+  ignore: SignalId[] | undefined
+): { active: Signal[]; ignored: Signal[] } {
+  if (ignore == null || ignore.length === 0) {
+    return { active: signals, ignored: [] };
+  }
+
+  const ignoreSet = new Set<string>(ignore);
+  const active: Signal[] = [];
+  const ignored: Signal[] = [];
+
+  for (const signal of signals) {
+    if (ignoreSet.has(signal.id)) {
+      ignored.push(signal);
+    } else {
+      active.push(signal);
+    }
+  }
+
+  return { active, ignored };
+}
+
 function malformed(
   platform: typeof Platform.OS,
   error: string
@@ -55,6 +106,8 @@ function malformed(
   return {
     status: 'unknown',
     signals: [],
+    ignored: [],
+    durationMs: 0,
     platform,
     reason: 'native_error',
     error,
@@ -64,6 +117,7 @@ function malformed(
 /**
  * Maps a native integrity report + options to the public IntegrityResult.
  * Compromise evidence wins over incomplete runs; incomplete/malformed never become 'clean'.
+ * `durationMs` is set to 0 here — `checkIntegrity` overwrites with measured wall time.
  */
 export function resolveStatus(
   report: unknown,
@@ -80,25 +134,24 @@ export function resolveStatus(
     return malformed(platform, 'Malformed native integrity report');
   }
 
-  const signals = nativeReport.signals.map(normalizeSignal);
+  const allSignals = nativeReport.signals.map(normalizeSignal);
+  const { active: signals, ignored } = partitionIgnored(
+    allSignals,
+    options.ignore
+  );
   const completed = nativeReport.completed === true;
-  const treatEmulatorAsCompromised =
-    options.treatEmulatorAsCompromised === true;
+  const compromising = resolveCompromisingCategories(options);
 
-  const hasNonEmulatorSignal = signals.some(
-    (signal) => signal.category !== 'emulator'
-  );
-  const hasEmulatorSignal = signals.some(
-    (signal) => signal.category === 'emulator'
+  const hasCompromisingSignal = signals.some((signal) =>
+    compromising.has(signal.category)
   );
 
-  if (
-    hasNonEmulatorSignal ||
-    (hasEmulatorSignal && treatEmulatorAsCompromised)
-  ) {
+  if (hasCompromisingSignal) {
     return {
       status: 'compromised',
       signals,
+      ignored,
+      durationMs: 0,
       platform,
     };
   }
@@ -112,6 +165,8 @@ export function resolveStatus(
     return {
       status: 'unknown',
       signals,
+      ignored,
+      durationMs: 0,
       platform,
       reason,
     };
@@ -120,6 +175,8 @@ export function resolveStatus(
   return {
     status: 'clean',
     signals,
+    ignored,
+    durationMs: 0,
     platform,
   };
 }

@@ -16,11 +16,27 @@ export type UseDeviceIntegrityResult = {
   refresh: () => Promise<IntegrityResult>;
 };
 
+/**
+ * Stable serialization of options that affect the check. Inline object literals
+ * with the same values must not retrigger the effect.
+ */
+function optionsKey(options: CheckIntegrityOptions): string {
+  return JSON.stringify({
+    treatEmulatorAsCompromised: options.treatEmulatorAsCompromised === true,
+    timeoutMs: options.timeoutMs,
+    ignore: options.ignore,
+    policy: options.policy,
+    android: options.android,
+    ios: options.ios,
+  });
+}
+
 export function useDeviceIntegrity(
   options: CheckIntegrityOptions = {}
 ): UseDeviceIntegrityResult {
-  const treatEmulatorAsCompromised = options.treatEmulatorAsCompromised;
-  const timeoutMs = options.timeoutMs;
+  const key = optionsKey(options);
+  const optionsRef = useRef(options);
+  optionsRef.current = options;
 
   const [result, setResult] = useState<IntegrityResult | null>(null);
   const [loading, setLoading] = useState(true);
@@ -33,10 +49,7 @@ export function useDeviceIntegrity(
     const requestId = ++requestIdRef.current;
     setLoading(true);
 
-    const next = await checkIntegrity({
-      treatEmulatorAsCompromised,
-      timeoutMs,
-    });
+    const next = await checkIntegrity(optionsRef.current);
 
     if (mountedRef.current && requestId === requestIdRef.current) {
       setResult(next);
@@ -44,7 +57,9 @@ export function useDeviceIntegrity(
     }
 
     return next;
-  }, [treatEmulatorAsCompromised, timeoutMs]);
+    // `key` is the by-value options fingerprint (not used in the body; optionsRef is).
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- equal-by-value options
+  }, [key]);
 
   useEffect(() => {
     mountedRef.current = true;

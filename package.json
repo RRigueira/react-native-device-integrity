@@ -10,6 +10,10 @@
       "types": "./lib/typescript/src/index.d.ts",
       "default": "./lib/module/index.js"
     },
+    "./jest": {
+      "types": "./jest/index.d.ts",
+      "default": "./jest/index.js"
+    },
     "./package.json": "./package.json"
   },
   "files": [
@@ -18,6 +22,7 @@
     "android",
     "ios",
     "cpp",
+    "jest",
     "app.plugin.js",
     "plugin/build",
     "*.podspec",
@@ -153,7 +158,8 @@
       "<rootDir>/plugin/build"
     ],
     "testPathIgnorePatterns": [
-      "<rootDir>/plugin/build"
+      "<rootDir>/plugin/build",
+      "<rootDir>/jest"
     ],
     "collectCoverageFrom": [
       "src/**/*.{ts,tsx}",

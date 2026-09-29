@@ -1,7 +1,18 @@
 import { resolveStatus } from '../resolveStatus';
 import type { NativeIntegrityReport } from '../NativeDeviceIntegrity';
+import type { IntegrityResult } from '../types';
 
 const PLATFORM = 'ios' as const;
+
+function expectResult(
+  actual: IntegrityResult,
+  expected: Omit<IntegrityResult, 'durationMs'> & { durationMs?: number }
+) {
+  expect(actual).toEqual({
+    durationMs: 0,
+    ...expected,
+  });
+}
 
 describe('resolveStatus', () => {
   it('returns compromised for any non-emulator signal', () => {
@@ -16,9 +27,16 @@ describe('resolveStatus', () => {
       ],
     };
 
-    expect(resolveStatus(report, {}, PLATFORM)).toEqual({
+    expectResult(resolveStatus(report, {}, PLATFORM), {
       status: 'compromised',
-      signals: report.signals,
+      signals: [
+        {
+          id: 'jailbreak_cydia',
+          category: 'jailbreak',
+          description: 'Cydia detected',
+        },
+      ],
+      ignored: [],
       platform: PLATFORM,
     });
   });
@@ -51,9 +69,16 @@ describe('resolveStatus', () => {
       ],
     };
 
-    expect(resolveStatus(report, {}, PLATFORM)).toEqual({
+    expectResult(resolveStatus(report, {}, PLATFORM), {
       status: 'clean',
-      signals: report.signals,
+      signals: [
+        {
+          id: 'simulator',
+          category: 'emulator',
+          description: 'Running on simulator',
+        },
+      ],
+      ignored: [],
       platform: PLATFORM,
     });
   });
@@ -83,9 +108,10 @@ describe('resolveStatus', () => {
       signals: [],
     };
 
-    expect(resolveStatus(report, {}, PLATFORM)).toEqual({
+    expectResult(resolveStatus(report, {}, PLATFORM), {
       status: 'unknown',
       signals: [],
+      ignored: [],
       platform: PLATFORM,
       reason: 'not_implemented',
     });
@@ -98,9 +124,10 @@ describe('resolveStatus', () => {
       signals: [],
     };
 
-    expect(resolveStatus(report, {}, PLATFORM)).toEqual({
+    expectResult(resolveStatus(report, {}, PLATFORM), {
       status: 'unknown',
       signals: [],
+      ignored: [],
       platform: PLATFORM,
       reason: 'incomplete',
     });
@@ -112,9 +139,10 @@ describe('resolveStatus', () => {
       signals: [],
     };
 
-    expect(resolveStatus(report, {}, PLATFORM)).toEqual({
+    expectResult(resolveStatus(report, {}, PLATFORM), {
       status: 'clean',
       signals: [],
+      ignored: [],
       platform: PLATFORM,
     });
   });
@@ -137,6 +165,7 @@ describe('resolveStatus', () => {
 
     expect(result.signals[0]?.category).toBe('environment');
     expect(result.status).toBe('compromised');
+    expect(result.ignored).toEqual([]);
   });
 
   it('coerces non-string and missing native categories to environment', () => {
@@ -228,7 +257,7 @@ describe('resolveStatus', () => {
       PLATFORM
     );
 
-    expect(result).toEqual({
+    expectResult(result, {
       status: 'clean',
       signals: [
         {
@@ -237,6 +266,7 @@ describe('resolveStatus', () => {
           description: 'Simulator',
         },
       ],
+      ignored: [],
       platform: PLATFORM,
     });
   });
@@ -261,9 +291,10 @@ describe('resolveStatus', () => {
   });
 
   it('returns unknown/native_error for a non-object payload', () => {
-    expect(resolveStatus(null, {}, PLATFORM)).toEqual({
+    expectResult(resolveStatus(null, {}, PLATFORM), {
       status: 'unknown',
       signals: [],
+      ignored: [],
       platform: PLATFORM,
       reason: 'native_error',
       error: 'Malformed native integrity report',
@@ -272,14 +303,162 @@ describe('resolveStatus', () => {
   });
 
   it('returns unknown/native_error when signals is not an array', () => {
-    expect(
-      resolveStatus({ completed: true, signals: 'bad' }, {}, PLATFORM)
-    ).toEqual({
-      status: 'unknown',
-      signals: [],
-      platform: PLATFORM,
-      reason: 'native_error',
-      error: 'Malformed native integrity report',
-    });
+    expectResult(
+      resolveStatus({ completed: true, signals: 'bad' }, {}, PLATFORM),
+      {
+        status: 'unknown',
+        signals: [],
+        ignored: [],
+        platform: PLATFORM,
+        reason: 'native_error',
+        error: 'Malformed native integrity report',
+      }
+    );
+  });
+
+  it('moves ignored signal ids out of signals and does not compromise', () => {
+    const report: NativeIntegrityReport = {
+      completed: true,
+      signals: [
+        {
+          id: 'jailbreak_files',
+          category: 'jailbreak',
+          description: 'Unexpected system paths',
+        },
+        {
+          id: 'simulator',
+          category: 'emulator',
+          description: 'Simulator',
+        },
+      ],
+    };
+
+    const result = resolveStatus(
+      report,
+      { ignore: ['jailbreak_files'] },
+      PLATFORM
+    );
+
+    expect(result.status).toBe('clean');
+    expect(result.signals).toEqual([
+      {
+        id: 'simulator',
+        category: 'emulator',
+        description: 'Simulator',
+      },
+    ]);
+    expect(result.ignored).toEqual([
+      {
+        id: 'jailbreak_files',
+        category: 'jailbreak',
+        description: 'Unexpected system paths',
+      },
+    ]);
+  });
+
+  it('treats tamper category as compromising by default', () => {
+    const result = resolveStatus(
+      {
+        completed: true,
+        signals: [
+          {
+            id: 'tamper_signature_mismatch',
+            category: 'tamper',
+            description: 'Signing certificate mismatch',
+          },
+        ],
+      },
+      {},
+      PLATFORM
+    );
+
+    expect(result.status).toBe('compromised');
+  });
+
+  it('uses policy.compromisingCategories as the compromising set', () => {
+    const report: NativeIntegrityReport = {
+      completed: true,
+      signals: [
+        {
+          id: 'jailbreak_files',
+          category: 'jailbreak',
+          description: 'paths',
+        },
+        {
+          id: 'debugger_attached',
+          category: 'debugger',
+          description: 'debugger',
+        },
+      ],
+    };
+
+    const result = resolveStatus(
+      report,
+      { policy: { compromisingCategories: ['debugger'] } },
+      PLATFORM
+    );
+
+    expect(result.status).toBe('compromised');
+    expect(result.signals).toHaveLength(2);
+  });
+
+  it('policy without jailbreak leaves jailbreak as non-compromising', () => {
+    const result = resolveStatus(
+      {
+        completed: true,
+        signals: [
+          {
+            id: 'jailbreak_files',
+            category: 'jailbreak',
+            description: 'paths',
+          },
+        ],
+      },
+      { policy: { compromisingCategories: ['root'] } },
+      PLATFORM
+    );
+
+    expect(result.status).toBe('clean');
+    expect(result.signals).toHaveLength(1);
+  });
+
+  it('unions treatEmulatorAsCompromised with policy.compromisingCategories', () => {
+    const report: NativeIntegrityReport = {
+      completed: true,
+      signals: [
+        {
+          id: 'simulator',
+          category: 'emulator',
+          description: 'Simulator',
+        },
+      ],
+    };
+
+    const withoutFlag = resolveStatus(
+      report,
+      { policy: { compromisingCategories: ['jailbreak'] } },
+      PLATFORM
+    );
+    expect(withoutFlag.status).toBe('clean');
+
+    const withFlag = resolveStatus(
+      report,
+      {
+        policy: { compromisingCategories: ['jailbreak'] },
+        treatEmulatorAsCompromised: true,
+      },
+      PLATFORM
+    );
+    expect(withFlag.status).toBe('compromised');
+  });
+
+  it('always includes ignored: [] and durationMs: 0 from resolveStatus', () => {
+    const result = resolveStatus(
+      { completed: true, signals: [] },
+      {},
+      PLATFORM
+    );
+    expect(result.ignored).toEqual([]);
+    expect(result.durationMs).toBe(0);
   });
 });
