@@ -13,4 +13,14 @@
   return @"DeviceIntegrity";
 }
 
+- (void)checkIntegrity:(RCTPromiseResolveBlock)resolve
+                reject:(RCTPromiseRejectBlock)reject
+{
+  resolve(@{
+    @"completed": @NO,
+    @"reason": @"not_implemented",
+    @"signals": @[],
+  });
+}
+
 @end

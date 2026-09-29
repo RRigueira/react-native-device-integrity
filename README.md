@@ -12,7 +12,29 @@ npm install react-native-device-integrity
 
 ## Usage
 
-API coming soon — see the project plan for the integrity check surface.
+```ts
+import {
+  checkIntegrity,
+  useDeviceIntegrity,
+} from 'react-native-device-integrity';
+
+// One-shot check
+const result = await checkIntegrity({
+  treatEmulatorAsCompromised: false,
+  timeoutMs: 10_000,
+});
+// result.status: 'clean' | 'compromised' | 'unknown'
+
+// React hook (re-checks when the app returns to foreground)
+function Screen() {
+  const { status, signals, loading, refresh, result } = useDeviceIntegrity();
+  // ...
+}
+```
+
+### Result semantics
+
+`unknown` is never treated as `clean`. It covers unsupported platforms, a missing native module, native errors, timeouts, and incomplete runs. Where integrity matters, apps should **fail closed** on `unknown` (block or degrade) rather than assuming the device is safe.
 
 
 ## Contributing

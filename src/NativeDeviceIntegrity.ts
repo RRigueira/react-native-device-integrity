@@ -1,6 +1,19 @@
 import { TurboModuleRegistry, type TurboModule } from 'react-native';
 
-// Integrity API methods are added in Phase 1 (codegen accepts empty module specs).
-export interface Spec extends TurboModule {}
+export type NativeSignal = {
+  id: string;
+  category: string;
+  description: string;
+};
 
-export default TurboModuleRegistry.getEnforcing<Spec>('DeviceIntegrity');
+export type NativeIntegrityReport = {
+  completed: boolean;
+  reason?: string;
+  signals: NativeSignal[];
+};
+
+export interface Spec extends TurboModule {
+  checkIntegrity(): Promise<NativeIntegrityReport>;
+}
+
+export default TurboModuleRegistry.get<Spec>('DeviceIntegrity');
