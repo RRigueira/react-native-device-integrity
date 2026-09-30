@@ -14,6 +14,7 @@
       "types": "./jest/index.d.ts",
       "default": "./jest/index.js"
     },
+    "./app.plugin.js": "./app.plugin.js",
     "./package.json": "./package.json"
   },
   "files": [
@@ -47,7 +48,8 @@
     "typecheck": "tsc && tsc -p plugin --noEmit",
     "lint": "eslint \"**/*.{js,ts,tsx}\"",
     "test": "jest",
-    "release": "release-it --only-version"
+    "release": "release-it --only-version",
+    "check:exports": "node -e \"for (const s of ['react-native-device-integrity/app.plugin.js','react-native-device-integrity/jest','react-native-device-integrity/package.json']) require.resolve(s); console.log('exports ok')\""
   },
   "keywords": [
     "react-native",
@@ -212,5 +214,8 @@
       "eslint"
     ],
     "version": "0.63.1"
+  },
+  "resolutions": {
+    "release-it/undici": "7.29.1"
   }
 }

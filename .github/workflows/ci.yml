@@ -34,6 +34,10 @@ jobs:
       - name: Typecheck files
         run: yarn typecheck
 
+      # Expo resolves config plugins as "<package>/app.plugin.js" through package.json "exports".
+      - name: Check package exports resolve
+        run: yarn check:exports
+
   test:
     runs-on: ubuntu-latest
 
