@@ -1,4 +1,4 @@
-import type { CodegenTypes, TurboModule } from 'react-native';
+import type { TurboModule } from 'react-native';
 import { TurboModuleRegistry } from 'react-native';
 
 export type NativeSignal = {
@@ -14,9 +14,9 @@ export type NativeIntegrityReport = {
 };
 
 export interface Spec extends TurboModule {
-  checkIntegrity(
-    options: CodegenTypes.UnsafeObject
-  ): Promise<NativeIntegrityReport>;
+  // `Object` (not CodegenTypes.UnsafeObject) so older codegen versions, e.g.
+  // React Native 0.79, can parse the spec. Codegen maps it to a generic object.
+  checkIntegrity(options: Object): Promise<NativeIntegrityReport>;
 }
 
 export default TurboModuleRegistry.get<Spec>('DeviceIntegrity');
