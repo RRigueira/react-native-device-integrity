@@ -1,4 +1,5 @@
-import { TurboModuleRegistry, type TurboModule } from 'react-native';
+import type { CodegenTypes, TurboModule } from 'react-native';
+import { TurboModuleRegistry } from 'react-native';
 
 export type NativeSignal = {
   id: string;
@@ -13,7 +14,9 @@ export type NativeIntegrityReport = {
 };
 
 export interface Spec extends TurboModule {
-  checkIntegrity(): Promise<NativeIntegrityReport>;
+  checkIntegrity(
+    options: CodegenTypes.UnsafeObject
+  ): Promise<NativeIntegrityReport>;
 }
 
 export default TurboModuleRegistry.get<Spec>('DeviceIntegrity');

@@ -80,8 +80,11 @@ jobs:
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ env.TURBO_CACHE_DIR }}
-          key: ${{ runner.os }}-turborepo-android-${{ hashFiles('yarn.lock') }}
+          # Cache keys are immutable: include the commit so every run saves its results,
+          # and restore the newest cache for the same lockfile (then any) by prefix.
+          key: ${{ runner.os }}-turborepo-android-${{ hashFiles('yarn.lock') }}-${{ github.sha }}
           restore-keys: |
+            ${{ runner.os }}-turborepo-android-${{ hashFiles('yarn.lock') }}-
             ${{ runner.os }}-turborepo-android-
 
       - name: Check turborepo cache for Android
@@ -149,8 +152,11 @@ jobs:
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ env.TURBO_CACHE_DIR }}
-          key: ${{ runner.os }}-turborepo-ios-${{ hashFiles('yarn.lock') }}
+          # Cache keys are immutable: include the commit so every run saves its results,
+          # and restore the newest cache for the same lockfile (then any) by prefix.
+          key: ${{ runner.os }}-turborepo-ios-${{ hashFiles('yarn.lock') }}-${{ github.sha }}
           restore-keys: |
+            ${{ runner.os }}-turborepo-ios-${{ hashFiles('yarn.lock') }}-
             ${{ runner.os }}-turborepo-ios-
 
       - name: Check turborepo cache for iOS

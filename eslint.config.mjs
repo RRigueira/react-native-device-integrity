@@ -24,6 +24,20 @@ export default defineConfig([
     },
   },
   {
+    files: ['jest/**/*.{js,cjs}'],
+    languageOptions: {
+      sourceType: 'commonjs',
+      globals: {
+        module: 'writable',
+        require: 'readonly',
+        exports: 'writable',
+      },
+    },
+    rules: {
+      'no-undef': 'off',
+    },
+  },
+  {
     ignores: ['node_modules/', 'lib/', 'plugin/build/', 'coverage/'],
   },
 ]);

@@ -7,17 +7,20 @@ import {
   View,
 } from 'react-native';
 import { IntegrityGate } from '../components/IntegrityGate';
+import { buildCheckOptions } from './IntegrityScreen';
 
 const TOP_INSET =
   Platform.OS === 'android' ? (StatusBar.currentHeight ?? 24) : 60;
 
 type ProtectedScreenProps = {
   treatEmulatorAsCompromised: boolean;
+  androidTamperDemo: boolean;
   onBack: () => void;
 };
 
 export function ProtectedScreen({
   treatEmulatorAsCompromised,
+  androidTamperDemo,
   onBack,
 }: ProtectedScreenProps) {
   return (
@@ -32,7 +35,12 @@ export function ProtectedScreen({
         <Text style={styles.backLabel}>Back</Text>
       </Pressable>
 
-      <IntegrityGate options={{ treatEmulatorAsCompromised }}>
+      <IntegrityGate
+        options={buildCheckOptions({
+          treatEmulatorAsCompromised,
+          androidTamperDemo,
+        })}
+      >
         <View style={styles.content}>
           <Text
             accessibilityRole="header"

@@ -10,6 +10,7 @@ export default function App() {
   const [screen, setScreen] = useState<Screen>('home');
   const [treatEmulatorAsCompromised, setTreatEmulatorAsCompromised] =
     useState(false);
+  const [androidTamperDemo, setAndroidTamperDemo] = useState(false);
 
   useEffect(() => {
     if (screen !== 'protected') {
@@ -36,11 +37,14 @@ export default function App() {
         <IntegrityScreen
           treatEmulatorAsCompromised={treatEmulatorAsCompromised}
           onTreatEmulatorChange={setTreatEmulatorAsCompromised}
+          androidTamperDemo={androidTamperDemo}
+          onAndroidTamperDemoChange={setAndroidTamperDemo}
           onOpenProtected={() => setScreen('protected')}
         />
       ) : (
         <ProtectedScreen
           treatEmulatorAsCompromised={treatEmulatorAsCompromised}
+          androidTamperDemo={androidTamperDemo}
           onBack={() => setScreen('home')}
         />
       )}

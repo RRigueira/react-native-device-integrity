@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import {
   useDeviceIntegrity,
+  type CheckIntegrityOptions,
   type IntegrityStatus,
   type Signal,
 } from 'react-native-device-integrity';
@@ -27,20 +28,45 @@ const STATUS_COLORS: Record<
   unknown: { background: '#FEF3C7', text: '#92400E' },
 };
 
+/** Demo-only fake cert (64 hex zeros) so emulators report signature mismatch. */
+const TAMPER_DEMO_CERT = '00'.repeat(32);
+
 type IntegrityScreenProps = {
   treatEmulatorAsCompromised: boolean;
   onTreatEmulatorChange: (value: boolean) => void;
+  androidTamperDemo: boolean;
+  onAndroidTamperDemoChange: (value: boolean) => void;
   onOpenProtected: () => void;
 };
+
+export function buildCheckOptions(params: {
+  treatEmulatorAsCompromised: boolean;
+  androidTamperDemo: boolean;
+}): CheckIntegrityOptions {
+  const options: CheckIntegrityOptions = {
+    treatEmulatorAsCompromised: params.treatEmulatorAsCompromised,
+  };
+
+  if (params.androidTamperDemo) {
+    options.android = {
+      expectedSigningCertificates: [TAMPER_DEMO_CERT],
+      allowedInstallers: ['com.android.vending'],
+    };
+  }
+
+  return options;
+}
 
 export function IntegrityScreen({
   treatEmulatorAsCompromised,
   onTreatEmulatorChange,
+  androidTamperDemo,
+  onAndroidTamperDemoChange,
   onOpenProtected,
 }: IntegrityScreenProps) {
-  const { status, signals, result, loading, refresh } = useDeviceIntegrity({
-    treatEmulatorAsCompromised,
-  });
+  const { status, signals, result, loading, refresh } = useDeviceIntegrity(
+    buildCheckOptions({ treatEmulatorAsCompromised, androidTamperDemo })
+  );
 
   return (
     <ScrollView
@@ -53,6 +79,13 @@ export function IntegrityScreen({
       <StatusBadge status={status} />
 
       <Text style={styles.platform}>Platform: {Platform.OS}</Text>
+
+      {result != null ? (
+        <Text style={styles.meta} testID="duration-label">
+          Duration: {Math.round(result.durationMs)} ms · Ignored:{' '}
+          {result.ignored.length}
+        </Text>
+      ) : null}
 
       {status === 'unknown' && result?.reason != null ? (
         <Text style={styles.meta}>Reason: {result.reason}</Text>
@@ -81,6 +114,20 @@ export function IntegrityScreen({
           value={treatEmulatorAsCompromised}
         />
       </View>
+
+      {Platform.OS === 'android' ? (
+        <View style={styles.switchRow}>
+          <Text style={styles.switchLabel} accessibilityRole="text">
+            Android tamper demo
+          </Text>
+          <Switch
+            accessibilityLabel="Android tamper demo"
+            onValueChange={onAndroidTamperDemoChange}
+            testID="tamper-demo-switch"
+            value={androidTamperDemo}
+          />
+        </View>
+      ) : null}
 
       <Pressable
         accessibilityRole="button"

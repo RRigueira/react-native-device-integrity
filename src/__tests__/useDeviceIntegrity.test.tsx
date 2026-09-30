@@ -21,6 +21,8 @@ describe('useDeviceIntegrity', () => {
   const cleanResult: IntegrityResult = {
     status: 'clean',
     signals: [],
+    ignored: [],
+    durationMs: 1,
     platform: 'ios',
   };
 
@@ -33,6 +35,8 @@ describe('useDeviceIntegrity', () => {
         description: 'Cydia',
       },
     ],
+    ignored: [],
+    durationMs: 2,
     platform: 'ios',
   };
 
@@ -219,5 +223,35 @@ describe('useDeviceIntegrity', () => {
     // it was never updated to the resolved clean result.
     expect(result.current.result).toBeNull();
     expect(result.current.loading).toBe(true);
+  });
+
+  it('does not re-check when inline options objects are referentially new but equal', async () => {
+    mockCheckIntegrity.mockResolvedValue(cleanResult);
+
+    const { rerender } = renderHook(
+      (props: { treatEmulatorAsCompromised: boolean }) =>
+        useDeviceIntegrity({
+          treatEmulatorAsCompromised: props.treatEmulatorAsCompromised,
+          android: {
+            allowedInstallers: ['com.android.vending'],
+          },
+        }),
+      { initialProps: { treatEmulatorAsCompromised: false } }
+    );
+
+    await waitFor(() => {
+      expect(mockCheckIntegrity).toHaveBeenCalledTimes(1);
+    });
+
+    rerender({ treatEmulatorAsCompromised: false });
+    rerender({ treatEmulatorAsCompromised: false });
+
+    expect(mockCheckIntegrity).toHaveBeenCalledTimes(1);
+
+    rerender({ treatEmulatorAsCompromised: true });
+
+    await waitFor(() => {
+      expect(mockCheckIntegrity).toHaveBeenCalledTimes(2);
+    });
   });
 });
