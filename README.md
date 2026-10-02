@@ -308,6 +308,26 @@ it('blocks compromised devices', async () => {
 
 `setMockIntegrityResult(partial)` merges onto a default clean result (`status: 'clean'`, empty `signals` / `ignored`, `platform: 'ios'`, `durationMs: 0`). `useDeviceIntegrity` returns `{ status, signals, result, loading: false, refresh }` from the current mock result.
 
+## Validating on a real device
+
+Unit tests and the Jest mock prove your app's logic; to see the native checks fire, run them against a real, prepared device. The example app ships an **opt-in Frida Gadget build** for testing hooking detection on a stock iPhone — no jailbreak needed:
+
+```sh
+# 1. Download frida-gadget-<version>-ios-universal.dylib.xz from
+#    https://github.com/frida/frida/releases, unpack it and save it as
+#    example/frida/FridaGadget.dylib (gitignored)
+# 2. Regenerate the iOS project with the gadget wired in
+yarn example prebuild:frida
+# 3. Open example/ios/DeviceIntegrityExample.xcworkspace, pick your signing team
+#    (a free Personal Team works) and a physical iPhone, then Run
+```
+
+The [`with-frida-gadget`](example/plugins/with-frida-gadget.js) config plugin does nothing unless `FRIDA_GADGET=1` is set. When it is, it links the gadget on device builds only, embeds and signs it, writes a gadget config that starts the app normally (`on_load: resume`, `code_signing: required` — required on a stock device without a debugger), and sets the scheme to Release without LLDB. `yarn example prebuild:ios` regenerates a clean project.
+
+Observed on an iPhone XS Max (A12, iOS 18.7.10, stock): `status: compromised` with a single signal, **`hooking_libraries`**. Launched from Xcode with the debugger attached, the same build also reports `debugger_attached` and `hooking_dyld_insert` (Xcode injects its view-debugging library) — expected, not false positives.
+
+The project site's testing guides cover this step by step (including free vs paid Apple accounts and troubleshooting), plus rooting an Android test device and jailbreaking an iPhone (palera1n on A9–A11, Dopamine on supported A12+ builds).
+
 ## Signal reference
 
 Descriptions are generic on purpose (no matched paths or package names).
@@ -373,6 +393,7 @@ These checks run only when you pass the corresponding options. They do not run b
 
 - On the **iOS Simulator**, filesystem / URL-scheme / symlink / writable-system and `DYLD_INSERT_LIBRARIES` checks are **skipped** (they would inspect the host Mac). Skipped-by-design is not incomplete; hooking-library and debugger checks still run, plus the `simulator` signal.
 - `debugger_attached` fires whenever a debugger is attached, including during normal Xcode / Android Studio debugging.
+- Running from Xcode with the debugger also sets `DYLD_INSERT_LIBRARIES` (Xcode's view-debugging support library), so `hooking_dyld_insert` fires too. Launch from the home screen, or untick *Debug executable* in the scheme, to see the production result.
 - Android emulators still run root checks (they may report root-related signals independently of `emulator`).
 
 ## Limitations & threat model
