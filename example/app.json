@@ -22,6 +22,18 @@
     "web": {
       "favicon": "./assets/favicon.png"
     },
-    "plugins": ["../app.plugin.js"]
+    "plugins": [
+      "../app.plugin.js",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#F9FAFB",
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 120,
+          "resizeMode": "contain"
+        }
+      ],
+      "./plugins/with-frida-gadget"
+    ]
   }
 }

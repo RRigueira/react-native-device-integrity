@@ -1,3 +1,5 @@
 # These folders are generated with prebuild (CNG)
 android/
 ios/
+# Frida Gadget binary for the opt-in with-frida-gadget plugin (dev only, ~40 MB)
+frida/

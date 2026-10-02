@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Platform,
@@ -27,6 +28,12 @@ const STATUS_COLORS: Record<
   compromised: { background: '#FEE2E2', text: '#991B1B' },
   unknown: { background: '#FEF3C7', text: '#92400E' },
 };
+
+/**
+ * The native check takes ~20 ms, so a spinner tied only to `loading` never
+ * paints. Hold the busy state at least this long so a tap is acknowledged.
+ */
+const MIN_RECHECK_MS = 600;
 
 /** Demo-only fake cert (64 hex zeros) so emulators report signature mismatch. */
 const TAMPER_DEMO_CERT = '00'.repeat(32);
@@ -67,6 +74,30 @@ export function IntegrityScreen({
   const { status, signals, result, loading, refresh } = useDeviceIntegrity(
     buildCheckOptions({ treatEmulatorAsCompromised, androidTamperDemo })
   );
+  const [rechecking, setRechecking] = useState(false);
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
+  const busy = loading || rechecking;
+
+  const recheck = async () => {
+    if (busy) return;
+    setRechecking(true);
+    try {
+      await Promise.all([
+        refresh(),
+        new Promise<void>((resolve) => setTimeout(resolve, MIN_RECHECK_MS)),
+      ]);
+    } catch {
+      // refresh never rejects in practice
+    } finally {
+      if (mounted.current) setRechecking(false);
+    }
+  };
 
   return (
     <ScrollView
@@ -94,14 +125,16 @@ export function IntegrityScreen({
         <Text style={styles.meta}>Error: {result.error}</Text>
       ) : null}
 
-      {loading ? (
+      {loading && result == null ? (
         <View style={styles.loadingRow}>
           <ActivityIndicator size="small" color="#111827" />
           <Text style={styles.loadingLabel}>Checking…</Text>
         </View>
       ) : null}
 
-      <SignalsList signals={signals} />
+      <View style={busy && styles.refreshing}>
+        <SignalsList signals={signals} />
+      </View>
 
       <View style={styles.switchRow}>
         <Text style={styles.switchLabel} accessibilityRole="text">
@@ -131,18 +164,33 @@ export function IntegrityScreen({
 
       <Pressable
         accessibilityRole="button"
-        accessibilityState={{ disabled: loading }}
-        disabled={loading}
+        accessibilityLabel={busy ? 'Checking' : 'Re-check'}
+        accessibilityState={{ disabled: busy, busy }}
+        disabled={busy}
         onPress={() => {
-          refresh().catch(() => {
-            // refresh never rejects in practice
-          });
+          recheck().catch(() => {});
         }}
-        style={[styles.button, loading && styles.buttonDisabled]}
+        style={({ pressed }) => [
+          styles.button,
+          pressed && styles.buttonPressed,
+          busy && styles.buttonBusy,
+        ]}
         testID="recheck-button"
       >
-        <Text style={styles.buttonLabel}>Re-check</Text>
-        {loading ? <ActivityIndicator size="small" color="#fff" /> : null}
+        {/* Label stays mounted; the spinner sits beside it without shifting it. */}
+        <View style={styles.buttonContent}>
+          {busy ? (
+            <ActivityIndicator
+              color="#fff"
+              size="small"
+              style={styles.buttonSpinner}
+              testID="recheck-spinner"
+            />
+          ) : null}
+          <Text style={styles.buttonLabel}>
+            {busy ? 'Checking…' : 'Re-check'}
+          </Text>
+        </View>
       </Pressable>
 
       <Pressable
@@ -188,8 +236,10 @@ function SignalsList({ signals }: { signals: Signal[] }) {
       ) : (
         signals.map((signal, index) => (
           <View key={`${signal.id}-${index}`} style={styles.signalRow}>
-            <View style={styles.chip}>
-              <Text style={styles.chipText}>{signal.category}</Text>
+            <View style={styles.chipColumn}>
+              <View style={styles.chip}>
+                <Text style={styles.chipText}>{signal.category}</Text>
+              </View>
             </View>
             <View style={styles.signalBody}>
               <Text style={styles.signalId}>{signal.id}</Text>
@@ -264,6 +314,12 @@ const styles = StyleSheet.create({
     gap: 10,
     alignItems: 'flex-start',
   },
+  // Fixed width so every signal's text starts at the same x, whatever the
+  // category ("jailbreak" is the widest label).
+  chipColumn: {
+    width: 92,
+    alignItems: 'flex-start',
+  },
   chip: {
     backgroundColor: '#E5E7EB',
     borderRadius: 6,
@@ -313,8 +369,24 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 8,
   },
-  buttonDisabled: {
-    opacity: 0.6,
+  buttonPressed: {
+    opacity: 0.85,
+  },
+  buttonBusy: {
+    opacity: 0.8,
+  },
+  buttonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  buttonSpinner: {
+    position: 'absolute',
+    right: '100%',
+    marginRight: 8,
+  },
+  refreshing: {
+    opacity: 0.45,
   },
   buttonLabel: {
     color: '#fff',

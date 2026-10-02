@@ -5,6 +5,7 @@
   "dependencies": {
     "@expo/metro-runtime": "~57.0.16",
     "expo": "~57.0.26",
+    "expo-splash-screen": "~57.0.9",
     "expo-status-bar": "~57.0.1",
     "react": "19.2.3",
     "react-dom": "19.2.3",
@@ -15,6 +16,10 @@
     "start": "expo start --dev-client",
     "android": "expo run:android",
     "ios": "expo run:ios",
+    "prebuild": "expo prebuild",
+    "prebuild:ios": "expo prebuild --platform ios",
+    "prebuild:android": "expo prebuild --platform android",
+    "prebuild:frida": "FRIDA_GADGET=1 expo prebuild --platform ios",
     "web": "expo start --web",
     "build:ios": "xcodebuild ONLY_ACTIVE_ARCH=YES -workspace ios/DeviceIntegrityExample.xcworkspace -UseNewBuildSystem=YES -scheme DeviceIntegrityExample -configuration Debug -sdk iphonesimulator -derivedDataPath ios/build -quiet",
     "build:android": "cd android && ./gradlew assembleDebug -DtestBuildType=debug -Dorg.gradle.jvmargs=-Xmx4g",
