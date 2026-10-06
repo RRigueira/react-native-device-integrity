@@ -271,6 +271,25 @@ export const SIGNAL_INFO: Partial<Record<SignalId, SignalInfo>> = {
       },
     },
   },
+  bootloader_unlocked: {
+    strength: 'strong',
+    expected:
+      'Fires on any phone whose bootloader you unlocked yourself — including developer test devices. Emulators are skipped.',
+    platforms: {
+      android: {
+        title: 'Bootloader unlocked',
+        summary:
+          'Reads the verified boot state the bootloader hands to Android.',
+        checks:
+          'Reads ro.boot.verifiedbootstate (orange = unlocked), ro.boot.flash.locked (0 = unlocked) and ro.boot.vbmeta.device_state (unlocked) from one getprop dump. green (stock, locked) and yellow (locked with your own keys, e.g. GrapheneOS) do not fire. Skipped when the emulator signal fired.',
+        threat:
+          "An unlocked bootloader boots any software without verifying it — it's the first step to rooting, and to replacing the OS entirely. Play Integrity fails its device verdict for the same reason.",
+        bypass:
+          'Root frameworks can rewrite these properties for hidden apps (Magisk resetprop, used by Play Integrity Fix-style modules). Hardware-backed key attestation can confirm the real state.',
+        mastg: [],
+      },
+    },
+  },
   root_test_keys: {
     strength: 'medium',
     expected: 'Some custom ROMs and emulator images are built with test-keys.',

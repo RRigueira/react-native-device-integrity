@@ -79,6 +79,21 @@ To skip Info.plist URL-scheme entries (e.g. you manage them yourself):
 }
 ```
 
+To change how an unlocked bootloader is treated (see [Unlocked bootloaders](#unlocked-bootloaders)):
+
+```json
+{
+  "expo": {
+    "plugins": [
+      [
+        "react-native-device-integrity",
+        { "android": { "bootloaderUnlocked": "report" } }
+      ]
+    ]
+  }
+}
+```
+
 Then run `npx expo prebuild` or use a development build. Expo Go is not supported.
 
 ### Bare React Native
@@ -96,7 +111,50 @@ On iOS, add these schemes under `LSApplicationQueriesSchemes` in `Info.plist`:
 
 Without them, `canOpenURL` cannot query those schemes and the URL-scheme check **silently finds nothing**.
 
-Android needs no extra setup — the library manifest `<queries>` list merges automatically via the Gradle manifest merger.
+Android needs no extra setup — the library manifest `<queries>` list merges automatically via the Gradle manifest merger. To change how an unlocked bootloader is treated, add one `<meta-data>` inside `<application>` in `android/app/src/main/AndroidManifest.xml` (see [Unlocked bootloaders](#unlocked-bootloaders)):
+
+```xml
+<meta-data
+  android:name="com.deviceintegrity.bootloader_unlocked"
+  android:value="report" />
+```
+
+### Unlocked bootloaders
+
+`bootloader_unlocked` (Android) fires on any phone whose bootloader was unlocked — rooted phones, custom-ROM phones, and developers' own test phones. It's set once per app at build time:
+
+| Value | Effect |
+| --- | --- |
+| `compromised` (default) | The signal makes status `'compromised'`, like root. Matches Play Integrity, which also fails the device verdict on unlocked phones. |
+| `report` | The signal is still returned in `signals`, but never makes status `'compromised'` on its own (like `emulator`). |
+| `off` | The check doesn't run. |
+
+A missing or unrecognised value counts as `compromised`. The runtime `ignore` option still works on top (`ignore: ['bootloader_unlocked']` moves it to `ignored`).
+
+**Relaxing it doesn't hide root.** `bootloader_unlocked` and the root signals are separate checks: one asks whether the phone *can* boot unverified software, the others whether root is installed *now*. Status is `compromised` if any active signal is compromising, so a rooted phone stays `compromised` through `root_su_binary`, `root_management_apps` or `root_magisk_files` whatever this setting is. They can also fire alone — an unlocked phone running a custom ROM without root reports only `bootloader_unlocked`; a rooted phone whose boot properties are faked reports only the root signals.
+
+What you give up is the backstop when root is *hidden*: with Magisk's DenyList on, the `su` and mount checks go quiet and `bootloader_unlocked` is one of the few signals left (see [Validating on a real device](#validating-on-a-real-device)). Keep the default in production unless you have a reason not to.
+
+To relax it only for development builds of a bare app, use a Gradle placeholder:
+
+```xml
+<!-- AndroidManifest.xml -->
+<meta-data
+  android:name="com.deviceintegrity.bootloader_unlocked"
+  android:value="${deviceIntegrityBootloaderUnlocked}" />
+```
+
+```groovy
+// android/app/build.gradle
+android {
+  buildTypes {
+    debug { manifestPlaceholders += [deviceIntegrityBootloaderUnlocked: "report"] }
+    release { manifestPlaceholders += [deviceIntegrityBootloaderUnlocked: "compromised"] }
+  }
+}
+```
+
+In Expo, do the same from `app.config.js` (e.g. `bootloaderUnlocked: process.env.APP_VARIANT === 'production' ? 'compromised' : 'report'`), or at runtime with `ignore: __DEV__ ? ['bootloader_unlocked'] : []`.
 
 ## Usage
 
@@ -196,7 +254,7 @@ Tamper checks run **only** when their option is provided and non-empty (or `true
 
 `'jailbreak'` | `'root'` | `'hooking'` | `'debugger'` | `'emulator'` | `'tamper'` | `'environment'`
 
-A native category the JS layer doesn't recognise is reported as `environment`, never dropped. `tamper` is used by the opt-in tamper checks below.
+A native category the JS layer doesn't recognise is reported as `environment`, never dropped. `environment` is also the category of `bootloader_unlocked` (Android). `tamper` is used by the opt-in tamper checks below.
 
 #### `UnknownReason`
 
@@ -233,7 +291,7 @@ Behaviour:
 
 Status is resolved from the native report + options:
 
-1. Apply `ignore` — matching signals move to `ignored` and never affect status.
+1. Apply `ignore` — matching signals move to `ignored` and never affect status. Signals the app configured as report-only at build time (`bootloader_unlocked: "report"`) stay in `signals` but never affect status either.
 2. Build the compromising category set: `policy.compromisingCategories` if provided, otherwise every category except `'emulator'`. Union `'emulator'` when `treatEmulatorAsCompromised` is `true`.
 3. **Compromise evidence wins** — any non-ignored signal whose category is in that set → `'compromised'`, even if the run was incomplete.
 4. Non-compromising, non-ignored signals (e.g. emulator by default) stay in `signals` but do not change status.
@@ -326,21 +384,37 @@ The [`with-frida-gadget`](example/plugins/with-frida-gadget.js) config plugin do
 
 Observed on an iPhone XS Max (A12, iOS 18.7.10, stock): `status: compromised` with a single signal, **`hooking_libraries`**. Launched from Xcode with the debugger attached, the same build also reports `debugger_attached` and `hooking_dyld_insert` (Xcode injects its view-debugging library) — expected, not false positives.
 
+Observed on a rooted OnePlus Nord 3 (CPH2493, OxygenOS 15, unlocked bootloader, Magisk 31, no hiding): `status: compromised` with **`bootloader_unlocked`**, **`root_su_binary`**, **`root_management_apps`** and **`root_magisk_files`**, in about 150 ms. With Zygisk + DenyList hiding Magisk from the app, `root_su_binary` and `root_magisk_files` disappear (Magisk removes `su` and its mounts from the app's view), but **`bootloader_unlocked`** and **`root_management_apps`** still fire, so the status stays `compromised`. Hiding the Magisk app (randomised package name) or a `resetprop` module would remove those too — pair with server-side attestation for high-value flows.
+
+The same phone, built with each [`bootloaderUnlocked`](#unlocked-bootloaders) value:
+
+| Build setting | Root signals | Status | `bootloader_unlocked` |
+| --- | --- | --- | --- |
+| `compromised` (default) | active | `compromised` | in `signals` |
+| `compromised` (default) | ignored at runtime | `compromised` — from `bootloader_unlocked` alone | in `signals` |
+| `report` | active | `compromised` — from the root signals | in `signals` |
+| `report` | ignored at runtime | `clean` | in `signals`, not counted |
+| `off` | active | `compromised` — from the root signals | not checked |
+| default + `ignore: ['bootloader_unlocked']` | active | `compromised` — from the root signals | in `ignored` |
+
 <table>
   <tr>
     <th>iPhone XS Max + Frida Gadget</th>
     <th>Same build, run from Xcode</th>
     <th>Simulator + LLDB</th>
+    <th>Rooted OnePlus, Magisk DenyList</th>
   </tr>
   <tr>
     <td><img src="docs/images/a05-frida-xs-max.jpg" width="200" alt="iPhone XS Max: COMPROMISED, hooking_libraries only"></td>
     <td><img src="docs/images/a05-xcode-debugger-xs-max.jpg" width="200" alt="iPhone XS Max under Xcode: hooking_libraries, debugger_attached, hooking_dyld_insert"></td>
     <td><img src="docs/images/s01-simulator-debugger.jpg" width="200" alt="iOS Simulator with LLDB attached: simulator and debugger_attached"></td>
+    <td><img src="docs/images/a02-denylist-oneplus.jpg" width="200" alt="Rooted OnePlus with DenyList: bootloader_unlocked and root_management_apps"></td>
   </tr>
   <tr>
     <td>Launched from the home screen: <code>hooking_libraries</code> only.</td>
     <td>Xcode's debugger adds <code>debugger_attached</code> and <code>hooking_dyld_insert</code>.</td>
     <td><code>debugger_attached</code> fires; the <code>DYLD_INSERT_LIBRARIES</code> check is skipped on the Simulator.</td>
+    <td>DenyList hides <code>su</code> and the mounts; <code>bootloader_unlocked</code> and <code>root_management_apps</code> remain.</td>
   </tr>
 </table>
 
@@ -370,9 +444,10 @@ Descriptions are generic on purpose (no matched paths or package names).
 | id | category | Checks |
 | --- | --- | --- |
 | `emulator` | `emulator` | Device appears to be an emulator. |
+| `bootloader_unlocked` | `environment` | The bootloader is unlocked (verified boot state `orange`, or the flash/vbmeta lock properties say unlocked). Skipped on emulators. |
 | `root_su_binary` | `root` | A privileged elevation binary was found. |
 | `root_management_apps` | `root` | A root or privilege-management app is installed. |
-| `root_magisk_files` | `root` | Root framework artifacts were detected. |
+| `root_magisk_files` | `root` | Root framework artifacts were detected — Magisk / KernelSU / APatch mounts in the app's own mount table, or legacy paths. |
 | `root_test_keys` | `root` | Build was signed with test keys. |
 | `root_dangerous_props` | `root` | System security properties indicate an insecure build. |
 | `root_rw_system` | `root` | A system partition is mounted read-write. |
@@ -413,6 +488,7 @@ These checks run only when you pass the corresponding options. They do not run b
 - `debugger_attached` fires whenever a debugger is attached, including during normal Xcode / Android Studio debugging.
 - Running from Xcode with the debugger also sets `DYLD_INSERT_LIBRARIES` (Xcode's view-debugging support library), so `hooking_dyld_insert` fires too. Launch from the home screen, or untick *Debug executable* in the scheme, to see the production result.
 - Android emulators still run root checks (they may report root-related signals independently of `emulator`).
+- `bootloader_unlocked` is in the `environment` category, so it is compromising by default — it fires on any developer phone whose bootloader you unlocked. Set it to `report` or `off` per app, or per build type, as described in [Unlocked bootloaders](#unlocked-bootloaders). `yellow` verified boot (locked with user keys, e.g. GrapheneOS) does not fire.
 
 ## Limitations & threat model
 
@@ -420,7 +496,7 @@ These are **client-side risk indicators**. They can be bypassed by an attacker w
 
 - Frida / objection hooking this module
 - Rootless jailbreaks with hiding tweaks
-- Magisk DenyList / Zygisk / Shamiko
+- Magisk DenyList / Zygisk / Shamiko (unmount root traces for the app; `resetprop`-based modules can also fake the verified boot properties)
 - KernelSU hiding
 
 Never rely on them alone for security decisions. For high-assurance flows, use **Apple App Attest / DeviceCheck** and the **Google Play Integrity API** server-side.
