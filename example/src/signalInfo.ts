@@ -281,7 +281,7 @@ export const SIGNAL_INFO: Partial<Record<SignalId, SignalInfo>> = {
         summary:
           'Reads the verified boot state the bootloader hands to Android.',
         checks:
-          'Reads ro.boot.verifiedbootstate (orange = unlocked), ro.boot.flash.locked (0 = unlocked) and ro.boot.vbmeta.device_state (unlocked) from one getprop dump. green (stock, locked) and yellow (locked with your own keys, e.g. GrapheneOS) do not fire. Skipped when the emulator signal fired.',
+          'Reads ro.boot.verifiedbootstate (orange = unlocked), ro.boot.flash.locked (0 = unlocked) and ro.boot.vbmeta.device_state (unlocked) as system properties. green (stock, locked) and yellow (locked with your own keys, e.g. GrapheneOS) do not fire. Skipped when the emulator signal fired.',
         threat:
           "An unlocked bootloader boots any software without verifying it — it's the first step to rooting, and to replacing the OS entirely. Play Integrity fails its device verdict for the same reason.",
         bypass:
@@ -314,9 +314,9 @@ export const SIGNAL_INFO: Partial<Record<SignalId, SignalInfo>> = {
       android: {
         title: 'Insecure system properties',
         summary:
-          'Reads ro.debuggable and ro.secure via getprop to detect a debuggable / insecure build.',
+          'Reads ro.debuggable and ro.secure to detect a debuggable / insecure build.',
         checks:
-          'Spawns getprop (with a 1-second timeout) for ro.debuggable and ro.secure. A build with ro.debuggable=1 or ro.secure=0 is an engineering/userdebug build with adbd running as root and relaxed restrictions.',
+          'Reads ro.debuggable and ro.secure in-process (android.os.SystemProperties, with a getprop fallback). A build with ro.debuggable=1 or ro.secure=0 is an engineering/userdebug build with adbd running as root and relaxed restrictions.',
         threat:
           'ro.secure=0 / ro.debuggable=1 means root adb and a debuggable system: an attacker can run arbitrary commands as root over adb and attach to any app. Production devices ship the opposite values.',
         bypass:
