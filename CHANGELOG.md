@@ -1,14 +1,8 @@
 # Changelog
 
-## [0.3.1](https://github.com/RRigueira/react-native-device-integrity/compare/v0.3.0...v0.3.1) (2026-10-06)
+## 0.3.1 (2026-10-06)
 
-### Performance Improvements
-
-* **android:** cut integrity check time ~3x ([#20](https://github.com/RRigueira/react-native-device-integrity/issues/20)) ([5c7f206](https://github.com/RRigueira/react-native-device-integrity/commit/5c7f206f9008de7a028b20ae96d332893f41164a))
-
-### Reverts
-
-* Revert "chore: release 0.3.1" (#21) ([d510c20](https://github.com/RRigueira/react-native-device-integrity/commit/d510c20d9a2f67fe87261c969d696d78a6cc1200)), closes [#21](https://github.com/RRigueira/react-native-device-integrity/issues/21)
+Published by mistake before the Android speed-up was merged: identical to 0.3.0 and deprecated on npm. Use 0.3.2.
 
 # [0.3.0](https://github.com/RRigueira/react-native-device-integrity/compare/v0.2.1...v0.3.0) (2026-10-06)
 
