@@ -17,6 +17,8 @@ import {
   type Signal,
 } from 'react-native-device-integrity';
 
+import { SignalRow } from '../components/SignalRow';
+
 const TOP_INSET =
   Platform.OS === 'android' ? (StatusBar.currentHeight ?? 24) : 60;
 
@@ -134,6 +136,14 @@ export function IntegrityScreen({
 
       <View style={busy && styles.refreshing}>
         <SignalsList signals={signals} />
+        {result != null && result.ignored.length > 0 ? (
+          <SignalsList
+            ignored
+            signals={result.ignored}
+            title="Ignored"
+            testID="ignored-list"
+          />
+        ) : null}
       </View>
 
       <View style={styles.switchRow}>
@@ -227,25 +237,32 @@ function StatusBadge({ status }: { status: IntegrityStatus }) {
   );
 }
 
-function SignalsList({ signals }: { signals: Signal[] }) {
+function SignalsList({
+  signals,
+  title = 'Signals',
+  ignored = false,
+  testID = 'signals-list',
+}: {
+  signals: Signal[];
+  title?: string;
+  ignored?: boolean;
+  testID?: string;
+}) {
   return (
-    <View style={styles.signals} testID="signals-list">
-      <Text style={styles.sectionTitle}>Signals ({signals.length})</Text>
+    <View style={styles.signals} testID={testID}>
+      <Text style={styles.sectionTitle}>
+        {title} ({signals.length})
+      </Text>
       {signals.length === 0 ? (
         <Text style={styles.empty}>No signals detected</Text>
       ) : (
         signals.map((signal, index) => (
-          <View key={`${signal.id}-${index}`} style={styles.signalRow}>
-            <View style={styles.chipColumn}>
-              <View style={styles.chip}>
-                <Text style={styles.chipText}>{signal.category}</Text>
-              </View>
-            </View>
-            <View style={styles.signalBody}>
-              <Text style={styles.signalId}>{signal.id}</Text>
-              <Text style={styles.signalDescription}>{signal.description}</Text>
-            </View>
-          </View>
+          <SignalRow
+            key={`${signal.id}-${index}`}
+            divider={index > 0}
+            ignored={ignored}
+            signal={signal}
+          />
         ))
       )}
     </View>
@@ -308,42 +325,6 @@ const styles = StyleSheet.create({
   empty: {
     fontSize: 14,
     color: '#9CA3AF',
-  },
-  signalRow: {
-    flexDirection: 'row',
-    gap: 10,
-    alignItems: 'flex-start',
-  },
-  // Fixed width so every signal's text starts at the same x, whatever the
-  // category ("jailbreak" is the widest label).
-  chipColumn: {
-    width: 92,
-    alignItems: 'flex-start',
-  },
-  chip: {
-    backgroundColor: '#E5E7EB',
-    borderRadius: 6,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-  },
-  chipText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#374151',
-    textTransform: 'uppercase',
-  },
-  signalBody: {
-    flex: 1,
-    gap: 2,
-  },
-  signalId: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#111827',
-  },
-  signalDescription: {
-    fontSize: 13,
-    color: '#6B7280',
   },
   switchRow: {
     marginTop: 8,
