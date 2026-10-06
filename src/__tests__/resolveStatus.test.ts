@@ -57,6 +57,79 @@ describe('resolveStatus', () => {
     expect(resolveStatus(report, {}, PLATFORM).status).toBe('compromised');
   });
 
+  it('treats bootloader_unlocked (environment) as compromising by default, but it can be ignored', () => {
+    const report: NativeIntegrityReport = {
+      completed: true,
+      signals: [
+        {
+          id: 'bootloader_unlocked',
+          category: 'environment',
+          description: 'The device bootloader is unlocked',
+        },
+      ],
+    };
+
+    expect(resolveStatus(report, {}, 'android').status).toBe('compromised');
+
+    const ignored = resolveStatus(
+      report,
+      { ignore: ['bootloader_unlocked'] },
+      'android'
+    );
+    expect(ignored.status).toBe('clean');
+    expect(ignored.ignored.map((signal) => signal.id)).toEqual([
+      'bootloader_unlocked',
+    ]);
+  });
+
+  it('keeps report-only signals (build-time config) in signals without compromising', () => {
+    const signal = {
+      id: 'bootloader_unlocked',
+      category: 'environment',
+      description: 'The device bootloader is unlocked',
+    };
+
+    const reportOnly = resolveStatus(
+      {
+        completed: true,
+        signals: [signal],
+        reportOnly: ['bootloader_unlocked'],
+      },
+      {},
+      'android'
+    );
+    expect(reportOnly.status).toBe('clean');
+    expect(reportOnly.signals).toEqual([signal]);
+
+    // Other compromising evidence still wins.
+    const withRoot = resolveStatus(
+      {
+        completed: true,
+        signals: [
+          signal,
+          { id: 'root_su_binary', category: 'root', description: 'su' },
+        ],
+        reportOnly: ['bootloader_unlocked'],
+      },
+      {},
+      'android'
+    );
+    expect(withRoot.status).toBe('compromised');
+
+    // Malformed reportOnly is ignored (fails closed).
+    expect(
+      resolveStatus(
+        {
+          completed: true,
+          signals: [signal],
+          reportOnly: 'bootloader_unlocked' as unknown as string[],
+        },
+        {},
+        'android'
+      ).status
+    ).toBe('compromised');
+  });
+
   it('returns clean when only emulator signals and treatEmulatorAsCompromised is false', () => {
     const report: NativeIntegrityReport = {
       completed: true,

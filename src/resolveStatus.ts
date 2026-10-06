@@ -141,9 +141,18 @@ export function resolveStatus(
   );
   const completed = nativeReport.completed === true;
   const compromising = resolveCompromisingCategories(options);
+  // Build-time app config (e.g. bootloader_unlocked: "report"): the signal is
+  // still returned, but never makes the status compromised on its own.
+  const reportOnly = new Set(
+    Array.isArray(nativeReport.reportOnly)
+      ? nativeReport.reportOnly.filter(
+          (id): id is string => typeof id === 'string'
+        )
+      : []
+  );
 
-  const hasCompromisingSignal = signals.some((signal) =>
-    compromising.has(signal.category)
+  const hasCompromisingSignal = signals.some(
+    (signal) => compromising.has(signal.category) && !reportOnly.has(signal.id)
   );
 
   if (hasCompromisingSignal) {

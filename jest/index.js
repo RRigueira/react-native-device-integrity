@@ -21,6 +21,7 @@ const SIGNAL_IDS = Object.freeze([
   'hooking_dyld_insert',
   'debugger_attached',
   'emulator',
+  'bootloader_unlocked',
   'root_su_binary',
   'root_management_apps',
   'root_magisk_files',

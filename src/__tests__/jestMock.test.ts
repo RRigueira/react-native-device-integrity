@@ -12,7 +12,8 @@ describe('jest mock (react-native-device-integrity/jest)', () => {
   it('exports SIGNAL_IDS matching the public list length', () => {
     expect(mock.SIGNAL_IDS).toContain('tamper_signature_mismatch');
     expect(mock.SIGNAL_IDS).toContain('debugger_attached');
-    expect(mock.SIGNAL_IDS.length).toBeGreaterThanOrEqual(21);
+    expect(mock.SIGNAL_IDS).toContain('bootloader_unlocked');
+    expect(mock.SIGNAL_IDS.length).toBeGreaterThanOrEqual(22);
   });
 
   it('defaults checkIntegrity to a clean result', async () => {

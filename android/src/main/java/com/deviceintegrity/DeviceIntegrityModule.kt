@@ -108,6 +108,12 @@ class DeviceIntegrityModule(reactContext: ReactApplicationContext) :
         signals.pushMap(entry)
       }
       map.putArray("signals", signals)
+
+      if (report.reportOnly.isNotEmpty()) {
+        val reportOnly: WritableArray = Arguments.createArray()
+        report.reportOnly.forEach { reportOnly.pushString(it) }
+        map.putArray("reportOnly", reportOnly)
+      }
       return map
     }
   }

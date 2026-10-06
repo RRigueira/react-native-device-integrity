@@ -11,6 +11,8 @@ export type NativeIntegrityReport = {
   completed: boolean;
   reason?: string;
   signals: NativeSignal[];
+  /** Signal ids the app configured at build time as reported-only (Android). */
+  reportOnly?: string[];
 };
 
 export interface Spec extends TurboModule {

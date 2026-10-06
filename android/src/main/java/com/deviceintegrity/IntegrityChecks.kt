@@ -7,6 +7,7 @@ import android.os.Debug
 import java.io.BufferedReader
 import java.io.File
 import java.io.FileReader
+import java.util.concurrent.FutureTask
 import java.util.concurrent.TimeUnit
 
 /**
@@ -24,6 +25,8 @@ internal class IntegrityChecks(private val context: Context) {
     val completed: Boolean,
     val reason: String? = null,
     val signals: List<Signal>,
+    /** Signal ids the app configured as reported-only (never compromising on their own). */
+    val reportOnly: List<String> = emptyList(),
   )
 
   fun run(androidOptions: AndroidTamperOptions = AndroidTamperOptions()): Report {
@@ -46,6 +49,12 @@ internal class IntegrityChecks(private val context: Context) {
     }
 
     runCheck { checkEmulator() }
+    // Emulators boot with an unlocked (orange) state too; they're already
+    // reported as `emulator`, which isn't compromising by default.
+    val bootloaderMode = BootloaderUnlockedMode.read(context)
+    if (bootloaderMode != BootloaderUnlockedMode.OFF) {
+      runCheck { if ("emulator" in seen) null else checkBootloaderUnlocked() }
+    }
     runCheck { checkRootSuBinary() }
     runCheck { checkRootManagementApps() }
     runCheck { checkRootMagiskFiles() }
@@ -64,6 +73,8 @@ internal class IntegrityChecks(private val context: Context) {
       completed = completed,
       reason = if (completed) null else "incomplete",
       signals = signals,
+      reportOnly =
+        if (bootloaderMode == BootloaderUnlockedMode.REPORT) listOf("bootloader_unlocked") else emptyList(),
     )
   }
 
@@ -129,6 +140,35 @@ internal class IntegrityChecks(private val context: Context) {
       id = "emulator",
       category = "emulator",
       description = "Device appears to be an emulator",
+    )
+  }
+
+  // --- bootloader ---
+
+  /**
+   * Verified boot state as set by the bootloader: `green` (locked, stock keys),
+   * `yellow` (locked, user-installed keys), `orange` (unlocked). Readable by any
+   * app; a root framework can still spoof the properties for hidden apps.
+   */
+  private fun checkBootloaderUnlocked(): Signal? {
+    val verifiedBootState = readSystemProperty("ro.boot.verifiedbootstate")
+    val flashLocked = readSystemProperty("ro.boot.flash.locked")
+    val deviceState = readSystemProperty("ro.boot.vbmeta.device_state")
+
+    if (verifiedBootState == null && flashLocked == null && deviceState == null) {
+      throw IllegalStateException("getprop failed")
+    }
+
+    val unlocked =
+      verifiedBootState == "orange" || flashLocked == "0" || deviceState == "unlocked"
+    if (!unlocked) {
+      return null
+    }
+
+    return Signal(
+      id = "bootloader_unlocked",
+      category = "environment",
+      description = "The device bootloader is unlocked",
     )
   }
 
@@ -221,6 +261,9 @@ internal class IntegrityChecks(private val context: Context) {
   }
 
   private fun checkRootMagiskFiles(): Signal? {
+    // Legacy locations (older Magisk / su-based roots). Current Magisk, KernelSU
+    // and APatch keep their files under /data/adb and a tmpfs that a normal app
+    // can't list, so on their own these miss a modern install.
     val paths =
       listOf(
         "/sbin/.magisk",
@@ -233,7 +276,7 @@ internal class IntegrityChecks(private val context: Context) {
         "/init.magisk.rc",
       )
 
-    if (!paths.any { File(it).exists() }) {
+    if (!paths.any { File(it).exists() } && !hasRootFrameworkMounts()) {
       return null
     }
 
@@ -242,6 +285,28 @@ internal class IntegrityChecks(private val context: Context) {
       category = "root",
       description = "Root framework artifacts were detected",
     )
+  }
+
+  /**
+   * The mounts a root framework creates (e.g. Magisk's `magisk` tmpfs over
+   * /debug_ramdisk and the bin directories) are listed in the app's own mount
+   * table, which it can always read — unless the framework unmounts them for
+   * this app (Magisk DenyList, KernelSU umount).
+   */
+  private fun hasRootFrameworkMounts(): Boolean {
+    val sources = setOf("magisk", "ksu", "apatch")
+    return File("/proc/self/mountinfo").useLines { lines ->
+      lines.any { line ->
+        // "<id> <parent> <dev> <root> <mount point> <options> [optional…] - <fstype> <source> <super options>"
+        val separator = line.indexOf(" - ")
+        if (separator < 0) {
+          return@any false
+        }
+        val mountPoint = line.substring(0, separator).split(' ').getOrNull(4).orEmpty()
+        val source = line.substring(separator + 3).split(' ').getOrNull(1).orEmpty()
+        source.lowercase() in sources || mountPoint.contains("/.magisk")
+      }
+    }
   }
 
   private fun checkRootTestKeys(): Signal? {
@@ -272,25 +337,41 @@ internal class IntegrityChecks(private val context: Context) {
     )
   }
 
-  private fun readSystemProperty(name: String): String? {
+  /**
+   * All system properties from one `getprop` dump, read once per run. Spawning
+   * a process costs ~100 ms from an app, so per-property calls add up quickly.
+   * Null when the dump can't be read; a property missing from it is "".
+   */
+  private val systemProperties: Map<String, String>? by lazy { readAllSystemProperties() }
+
+  private fun readSystemProperty(name: String): String? =
+    systemProperties?.let { it[name].orEmpty() }
+
+  private fun readAllSystemProperties(): Map<String, String>? {
     var process: Process? = null
     return try {
-      process = ProcessBuilder("getprop", name).redirectErrorStream(true).start()
-      val finished = process.waitFor(1, TimeUnit.SECONDS)
-      if (!finished) {
-        process.destroy()
-        process.waitFor(200, TimeUnit.MILLISECONDS)
-        if (process.isAlive) {
-          process.destroyForcibly()
+      val started = ProcessBuilder("getprop").redirectErrorStream(true).start()
+      process = started
+      // Drain stdout while waiting: the full dump can exceed the pipe buffer,
+      // and getprop would block on write until it's read.
+      val output = FutureTask { started.inputStream.bufferedReader().use { it.readText() } }
+      Thread(output, "DeviceIntegrity-getprop").apply { isDaemon = true }.start()
+      val text = output.get(1, TimeUnit.SECONDS)
+
+      // Lines look like "[ro.secure]: [1]".
+      buildMap {
+        text.lineSequence().forEach { line ->
+          val separator = line.indexOf("]: [")
+          if (line.startsWith("[") && line.endsWith("]") && separator > 0) {
+            put(line.substring(1, separator), line.substring(separator + 4, line.length - 1))
+          }
         }
-        return null
-      }
-      process.inputStream.bufferedReader().use { it.readText().trim() }
+      }.takeIf { it.isNotEmpty() } // an empty dump means we couldn't read it
     } catch (_: Throwable) {
       null
     } finally {
       try {
-        process?.destroy()
+        process?.destroyForcibly()
       } catch (_: Throwable) {
         // ignore
       }
