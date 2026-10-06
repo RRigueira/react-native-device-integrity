@@ -7,6 +7,7 @@ import android.os.Debug
 import java.io.BufferedReader
 import java.io.File
 import java.io.FileReader
+import java.lang.reflect.Method
 import java.util.concurrent.FutureTask
 import java.util.concurrent.TimeUnit
 
@@ -338,14 +339,23 @@ internal class IntegrityChecks(private val context: Context) {
   }
 
   /**
-   * All system properties from one `getprop` dump, read once per run. Spawning
-   * a process costs ~100 ms from an app, so per-property calls add up quickly.
-   * Null when the dump can't be read; a property missing from it is "".
+   * A system property, read in-process through `android.os.SystemProperties`
+   * (microseconds). If that hidden API is unavailable, falls back to one
+   * `getprop` dump per run — spawning a process costs ~40–100 ms from an app.
+   * Null when neither can be read; a missing property is "".
    */
-  private val systemProperties: Map<String, String>? by lazy { readAllSystemProperties() }
+  private fun readSystemProperty(name: String): String? {
+    systemPropertiesGet?.let { get ->
+      try {
+        return get.invoke(null, name) as? String ?: ""
+      } catch (_: Throwable) {
+        // fall through to the getprop dump
+      }
+    }
+    return systemPropertiesDump?.let { it[name].orEmpty() }
+  }
 
-  private fun readSystemProperty(name: String): String? =
-    systemProperties?.let { it[name].orEmpty() }
+  private val systemPropertiesDump: Map<String, String>? by lazy { readAllSystemProperties() }
 
   private fun readAllSystemProperties(): Map<String, String>? {
     var process: Process? = null
@@ -385,13 +395,17 @@ internal class IntegrityChecks(private val context: Context) {
     BufferedReader(FileReader("/proc/mounts")).use { reader ->
       var line: String?
       while (reader.readLine().also { line = it } != null) {
-        val parts = line!!.split(Regex("\\s+"))
+        // "<source> <mount point> <fstype> <options> <dump> <pass>"; the kernel
+        // separates fields with single spaces and escapes spaces inside them.
+        val parts = line!!.split(' ', limit = 5)
         if (parts.size < 4) {
           continue
         }
         val mountPoint = parts[1]
-        val options = parts[3].split(',')
-        if (mountPoint in targets && "rw" in options) {
+        if (mountPoint !in targets) {
+          continue
+        }
+        if ("rw" in parts[3].split(',')) {
           return Signal(
             id = "root_rw_system",
             category = "root",
@@ -504,18 +518,15 @@ internal class IntegrityChecks(private val context: Context) {
 
   // --- helpers ---
 
-  private fun mapsContainAny(markers: List<String>): Boolean {
-    BufferedReader(FileReader("/proc/self/maps")).use { reader ->
-      var line: String?
-      while (reader.readLine().also { line = it } != null) {
-        val current = line!!
-        if (markers.any { marker -> current.contains(marker) }) {
-          return true
-        }
-      }
-    }
-    return false
-  }
+  /**
+   * `/proc/self/maps`, read once per run and shared by the hooking checks. The
+   * kernel regenerates it on every read, and a React Native process maps
+   * thousands of regions. A failed read throws again on the next access.
+   */
+  private val selfMaps: String by lazy { File("/proc/self/maps").readText() }
+
+  private fun mapsContainAny(markers: List<String>): Boolean =
+    markers.any { marker -> selfMaps.contains(marker) }
 
   private fun taskCommContains(name: String): Boolean {
     val taskDir = File("/proc/self/task")
@@ -535,5 +546,16 @@ internal class IntegrityChecks(private val context: Context) {
       }
     }
     return false
+  }
+
+  companion object {
+    /** `android.os.SystemProperties.get(String)`, or null if hidden-API access is blocked. */
+    private val systemPropertiesGet: Method? by lazy {
+      try {
+        Class.forName("android.os.SystemProperties").getMethod("get", String::class.java)
+      } catch (_: Throwable) {
+        null
+      }
+    }
   }
 }
