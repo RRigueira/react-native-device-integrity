@@ -1,5 +1,13 @@
 # Changelog
 
+# [0.3.0](https://github.com/RRigueira/react-native-device-integrity/compare/v0.2.1...v0.3.0) (2026-10-06)
+
+### Features
+
+* **android:** bootloader_unlocked signal, mount-based Magisk detection ([#19](https://github.com/RRigueira/react-native-device-integrity/issues/19)) ([abf4a81](https://github.com/RRigueira/react-native-device-integrity/commit/abf4a81f948520af356453eaa42f92e200f5ea37))
+* **example:** explain each signal, show ignored signals, README screenshots ([#18](https://github.com/RRigueira/react-native-device-integrity/issues/18)) ([c4f192e](https://github.com/RRigueira/react-native-device-integrity/commit/c4f192e092baa398cbf795776a7c68bc78a96497))
+* **example:** opt-in Frida Gadget build, validated hooking detection on a stock iPhone ([#16](https://github.com/RRigueira/react-native-device-integrity/issues/16)) ([7b1f2e3](https://github.com/RRigueira/react-native-device-integrity/commit/7b1f2e3a41bd4492701e2393c2cd50c1256a4549))
+
 ## [0.2.1](https://github.com/RRigueira/react-native-device-integrity/compare/v0.2.0...v0.2.1) (2026-09-30)
 
 ### Bug Fixes
