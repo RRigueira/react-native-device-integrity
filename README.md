@@ -326,6 +326,24 @@ The [`with-frida-gadget`](example/plugins/with-frida-gadget.js) config plugin do
 
 Observed on an iPhone XS Max (A12, iOS 18.7.10, stock): `status: compromised` with a single signal, **`hooking_libraries`**. Launched from Xcode with the debugger attached, the same build also reports `debugger_attached` and `hooking_dyld_insert` (Xcode injects its view-debugging library) — expected, not false positives.
 
+<table>
+  <tr>
+    <th>iPhone XS Max + Frida Gadget</th>
+    <th>Same build, run from Xcode</th>
+    <th>Simulator + LLDB</th>
+  </tr>
+  <tr>
+    <td><img src="docs/images/a05-frida-xs-max.jpg" width="200" alt="iPhone XS Max: COMPROMISED, hooking_libraries only"></td>
+    <td><img src="docs/images/a05-xcode-debugger-xs-max.jpg" width="200" alt="iPhone XS Max under Xcode: hooking_libraries, debugger_attached, hooking_dyld_insert"></td>
+    <td><img src="docs/images/s01-simulator-debugger.jpg" width="200" alt="iOS Simulator with LLDB attached: simulator and debugger_attached"></td>
+  </tr>
+  <tr>
+    <td>Launched from the home screen: <code>hooking_libraries</code> only.</td>
+    <td>Xcode's debugger adds <code>debugger_attached</code> and <code>hooking_dyld_insert</code>.</td>
+    <td><code>debugger_attached</code> fires; the <code>DYLD_INSERT_LIBRARIES</code> check is skipped on the Simulator.</td>
+  </tr>
+</table>
+
 The project site's testing guides cover this step by step (including free vs paid Apple accounts and troubleshooting), plus rooting an Android test device and jailbreaking an iPhone (palera1n on A9–A11, Dopamine on supported A12+ builds).
 
 ## Signal reference
